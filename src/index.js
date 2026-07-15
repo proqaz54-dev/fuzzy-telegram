@@ -32,6 +32,9 @@ let joystickStartPos = new THREE.Vector2();
 let isPlaying = false;
 let crystalCountVal = 0;
 
+// Ad simulation state
+let activeRewardCallback = null;
+
 // Initialize WebGL/Three.js Scene
 function init() {
     const container = document.getElementById('canvas-container');
@@ -81,8 +84,9 @@ function init() {
         spawnCrystal();
     }
 
-    // Setup inputs & UI listeners
+    // Setup inputs, UI listeners, and ads setup
     setupControls();
+    setupAds();
 
     // Resize handler
     window.addEventListener('resize', onWindowResize);
@@ -209,11 +213,9 @@ function createSpaceStation() {
 }
 
 function spawnAsteroid() {
-    // Create random bumpy asteroid geometry
     const r = 1.2 + Math.random() * 2.5;
     const geom = new THREE.DodecahedronGeometry(r, 1);
 
-    // Deform vertices slightly for uniqueness
     const position = geom.attributes.position;
     for (let i = 0; i < position.count; i++) {
         const x = position.getX(i);
@@ -233,10 +235,8 @@ function spawnAsteroid() {
     });
     const mesh = new THREE.Mesh(geom, mat);
 
-    // Random position avoiding station & spawn point
     resetAsteroidPosition(mesh);
 
-    // Add custom properties for game logic
     mesh.userData = {
         radius: r,
         health: Math.ceil(r * 3),
@@ -254,7 +254,6 @@ function spawnAsteroid() {
 
 function resetAsteroidPosition(mesh) {
     let x, z;
-    // Do not spawn too close to start position (0, 0, 10) or station (0, 0, -30)
     do {
         x = (Math.random() - 0.5) * 160;
         z = (Math.random() - 0.5) * 160;
@@ -304,29 +303,24 @@ function resetCrystalPosition(mesh) {
 function fireLaser() {
     if (fuel <= 0 || !isPlaying) return;
 
-    // Laser beam mesh
     const laserGeom = new THREE.CylinderGeometry(0.1, 0.1, 2, 6);
     laserGeom.rotateX(Math.PI / 2);
     const laserMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
     const laserMesh = new THREE.Mesh(laserGeom, laserMat);
 
-    // Set laser direction and orientation matching ship
     laserMesh.position.copy(ship.position);
     laserMesh.rotation.copy(ship.rotation);
 
-    // Move slightly forward of ship body
     laserMesh.translateZ(2);
 
-    // Custom data
     laserMesh.userData = {
         velocity: new THREE.Vector3(0, 0, 1).applyQuaternion(ship.quaternion).multiplyScalar(1.5),
-        life: 50 // frames to live
+        life: 50
     };
 
     scene.add(laserMesh);
     lasers.push(laserMesh);
 
-    // Use some fuel on action
     fuel = Math.max(0, fuel - 0.5);
     updateUI();
 }
@@ -354,7 +348,6 @@ function triggerExplosion(pos, colorHex, count = 10) {
 }
 
 function setupControls() {
-    // Joystick Touch / Mouse Events
     const joyContainer = document.getElementById('joystick-container');
     const joyKnob = document.getElementById('joystick-knob');
 
@@ -376,15 +369,13 @@ function setupControls() {
 
         const offset = new THREE.Vector2(pageX - joystickStartPos.x, pageY - joystickStartPos.y);
         const distance = offset.length();
-        const maxDist = 50; // Max constraint radius
+        const maxDist = 50;
 
         if (distance > maxDist) {
             offset.normalize().multiplyScalar(maxDist);
         }
 
         joyKnob.style.transform = `translate(${offset.x}px, ${offset.y}px)`;
-
-        // Normalize for move vector (-1 to 1)
         moveVector.set(offset.x / maxDist, -offset.y / maxDist);
     }
 
@@ -402,12 +393,10 @@ function setupControls() {
     window.addEventListener('touchmove', handleMove, { passive: false });
     window.addEventListener('touchend', handleEnd);
 
-    // Action / Laser Button
     const laserBtn = document.getElementById('laser-btn');
     laserBtn.addEventListener('mousedown', (e) => { e.preventDefault(); fireLaser(); });
     laserBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fireLaser(); });
 
-    // Keyboard fallbacks for desktop testing
     window.addEventListener('keydown', (e) => {
         if (!isPlaying) return;
         if (e.code === 'KeyW' || e.code === 'ArrowUp') moveVector.y = 1;
@@ -423,17 +412,20 @@ function setupControls() {
         if (['KeyA', 'ArrowLeft', 'KeyD', 'ArrowRight'].includes(e.code)) moveVector.x = 0;
     });
 
-    // Shop Dialog Interaction
     const shopBtn = document.getElementById('shop-btn');
     const shopModal = document.getElementById('shop-modal');
     const closeShop = document.getElementById('close-shop');
 
     shopBtn.addEventListener('click', () => {
-        // Only open if near the Space Station!
         const dist = ship.position.distanceTo(spaceStation.position);
         if (dist < 15) {
             shopModal.style.display = 'block';
             updateShopButtons();
+
+            // Trigger sponsor interstitial occasionally on docking
+            if (Math.random() < 0.4) {
+                showInterstitialAd();
+            }
         } else {
             alert('Підлетить ближче до Космічної Станції щоб зайти в магазин! (Вона позначена яскравим неоновим світлом)');
         }
@@ -443,7 +435,6 @@ function setupControls() {
         shopModal.style.display = 'none';
     });
 
-    // Shop transactions
     document.getElementById('sell-all-btn').addEventListener('click', () => {
         if (cargo > 0) {
             const earnings = cargo * 15 + crystalCountVal * 40;
@@ -456,12 +447,40 @@ function setupControls() {
         }
     });
 
+    // Rewarded option: sell for 2x cash!
+    document.getElementById('sell-all-double-btn').addEventListener('click', () => {
+        if (cargo > 0 || crystalCountVal > 0) {
+            playRewardedAd(() => {
+                const earnings = (cargo * 15 + crystalCountVal * 40) * 2;
+                money += earnings;
+                cargo = 0;
+                crystalCountVal = 0;
+                triggerExplosion(spaceStation.position, 0xffff00, 30);
+                updateUI();
+                updateShopButtons();
+                alert(`Подвійний продаж проведено успішно! Отримано $${earnings}! 💰💰`);
+            });
+        }
+    });
+
     document.getElementById('refuel-btn').addEventListener('click', () => {
         if (money >= 10 && fuel < 100) {
             money -= 10;
             fuel = 100;
             updateUI();
             updateShopButtons();
+        }
+    });
+
+    // Rewarded option: refuel with a video
+    document.getElementById('refuel-ad-btn').addEventListener('click', () => {
+        if (fuel < 100) {
+            playRewardedAd(() => {
+                fuel = 100;
+                updateUI();
+                updateShopButtons();
+                alert('Корабель повністю заправлено за допомогою спонсорського палива! 🚀');
+            });
         }
     });
 
@@ -498,7 +517,6 @@ function setupControls() {
         }
     });
 
-    // Start / Restart screen actions
     document.getElementById('start-btn').addEventListener('click', () => {
         document.getElementById('intro-screen').style.display = 'none';
         isPlaying = true;
@@ -508,11 +526,84 @@ function setupControls() {
         document.getElementById('gameover-screen').style.display = 'none';
         resetGame();
     });
+
+    // Rewarded option: revive player ship
+    document.getElementById('revive-ad-btn').addEventListener('click', () => {
+        playRewardedAd(() => {
+            document.getElementById('gameover-screen').style.display = 'none';
+            fuel = 50; // Give some fuel
+            cargo = 0; // Clear cargo
+            ship.position.set(0, 0, 10);
+            ship.rotation.set(0, 0, 0);
+            isPlaying = true;
+            updateUI();
+            alert('Ваш корабель було відновлено спонсорськими наномашинами! Продовжуємо місію!');
+        });
+    });
+}
+
+function setupAds() {
+    // Banner Close click handler
+    document.getElementById('close-banner-btn').addEventListener('click', () => {
+        document.getElementById('ad-banner').style.display = 'none';
+    });
+
+    // Interstitial Close click handler
+    document.getElementById('close-interstitial-btn').addEventListener('click', () => {
+        document.getElementById('ad-interstitial').style.display = 'none';
+        isPlaying = true;
+    });
+
+    // Rotation of banner ad texts to make it live!
+    const bannerAds = [
+        { title: "КосмоЛот Казино! 🎰", desc: "Вигравай реальні мільйони на рахунок!" },
+        { title: "Новий Тариф Лайфселл 📱", desc: "Безлімітний інтернет за 120 грн/місяць!" },
+        { title: "Доставка Rozetka 📦", desc: "Купуй будь-що з безкоштовною доставкою!" },
+        { title: "Glovo Доставка 🍕", desc: "Знижка -20% на перше замовлення їжі!" }
+    ];
+    let currentAdIdx = 0;
+    setInterval(() => {
+        currentAdIdx = (currentAdIdx + 1) % bannerAds.length;
+        document.getElementById('banner-title').innerText = bannerAds[currentAdIdx].title;
+        document.getElementById('banner-desc').innerText = bannerAds[currentAdIdx].desc;
+    }, 10000);
+}
+
+function showInterstitialAd() {
+    isPlaying = false;
+    document.getElementById('ad-interstitial').style.display = 'flex';
+}
+
+function playRewardedAd(callback) {
+    isPlaying = false;
+    // Pause other modals
+    document.getElementById('shop-modal').style.display = 'none';
+
+    const adRewarded = document.getElementById('ad-rewarded');
+    const timerText = document.getElementById('ad-rewarded-timer');
+    adRewarded.style.display = 'flex';
+
+    let countdown = 5;
+    timerText.innerText = `Зачекайте: ${countdown}с`;
+
+    const interval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+            timerText.innerText = `Зачекайте: ${countdown}с`;
+        } else {
+            clearInterval(interval);
+            adRewarded.style.display = 'none';
+            isPlaying = true;
+            callback();
+        }
+    }, 1000);
 }
 
 function updateShopButtons() {
     document.getElementById('sell-all-btn').disabled = (cargo === 0 && crystalCountVal === 0);
+    document.getElementById('sell-all-double-btn').disabled = (cargo === 0 && crystalCountVal === 0);
     document.getElementById('refuel-btn').disabled = (money < 10 || fuel === 100);
+    document.getElementById('refuel-ad-btn').disabled = (fuel === 100);
     document.getElementById('upgrade-cargo-btn').disabled = (money < upgradeCargoCost);
     document.getElementById('upgrade-laser-btn').disabled = (money < upgradeLaserCost);
     document.getElementById('upgrade-speed-btn').disabled = (money < upgradeSpeedCost);
@@ -547,12 +638,16 @@ function resetGame() {
     ship.position.set(0, 0, 10);
     ship.rotation.set(0, 0, 0);
 
-    // Reset asteroids
     asteroids.forEach(ast => resetAsteroidPosition(ast));
     crystals.forEach(cry => resetCrystalPosition(cry));
 
     isPlaying = true;
     updateUI();
+
+    // Occasional fullscreen ad on new game start
+    if (Math.random() < 0.5) {
+        showInterstitialAd();
+    }
 }
 
 function onWindowResize() {
@@ -569,7 +664,6 @@ function animate() {
         updateGameLogic();
     }
 
-    // Always render to keep UI/space station spinning
     if (spaceStation) {
         spaceStation.rotation.y += 0.002;
     }
@@ -578,34 +672,27 @@ function animate() {
 }
 
 function updateGameLogic() {
-    // 1. Ship movement & controls
     if (moveVector.length() > 0.05) {
         const speed = 0.25 * shipSpeedMultiplier;
 
-        // Update rotation based on joystick horizontal
         ship.rotation.y -= moveVector.x * 0.05;
 
-        // Move forward / backward based on vertical vector
         const direction = new THREE.Vector3(0, 0, 1).applyQuaternion(ship.quaternion);
         ship.position.addScaledVector(direction, moveVector.y * speed);
 
-        // Slowly consume fuel when moving
         fuel = Math.max(0, fuel - 0.03);
         updateUI();
     }
 
-    // Check fuel gameover condition
     if (fuel <= 0) {
         gameOver("У вас закінчилось паливо!");
     }
 
-    // Camera follow player
     const offset = new THREE.Vector3(0, 8, -14).applyQuaternion(ship.quaternion);
     const targetCamPos = ship.position.clone().add(offset);
     camera.position.lerp(targetCamPos, 0.1);
     camera.lookAt(ship.position.clone().add(new THREE.Vector3(0, 1, 4).applyQuaternion(ship.quaternion)));
 
-    // 2. Rotate obstacles
     asteroids.forEach(ast => {
         ast.rotation.x += ast.userData.rotSpeed.x;
         ast.rotation.y += ast.userData.rotSpeed.y;
@@ -616,7 +703,6 @@ function updateGameLogic() {
         cry.rotation.y += cry.userData.rotSpeed;
     });
 
-    // 3. Update Lasers
     for (let i = lasers.length - 1; i >= 0; i--) {
         const laser = lasers[i];
         laser.position.add(laser.userData.velocity);
@@ -624,26 +710,21 @@ function updateGameLogic() {
 
         let removed = false;
 
-        // Check collision with asteroids
         for (let j = asteroids.length - 1; j >= 0; j--) {
             const ast = asteroids[j];
             const dist = laser.position.distanceTo(ast.position);
 
             if (dist < ast.userData.radius) {
-                // Hit asteroid!
                 ast.userData.health -= laserDamage;
                 triggerExplosion(laser.position, 0xffaa00, 5);
 
-                // Remove laser
                 scene.remove(laser);
                 lasers.splice(i, 1);
                 removed = true;
 
-                // Destroy asteroid if health <= 0
                 if (ast.userData.health <= 0) {
                     triggerExplosion(ast.position, 0x8d7e73, 15);
 
-                    // Award cargo
                     if (cargo < cargoMax) {
                         cargo = Math.min(cargoMax, cargo + Math.ceil(ast.userData.radius));
                         updateUI();
@@ -658,14 +739,12 @@ function updateGameLogic() {
 
         if (removed) continue;
 
-        // Expiry of laser beam
         if (laser.userData.life <= 0) {
             scene.remove(laser);
             lasers.splice(i, 1);
         }
     }
 
-    // 4. Update particle system
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.position.add(p.userData.velocity);
@@ -678,13 +757,11 @@ function updateGameLogic() {
         }
     }
 
-    // 5. Collisions: Ship with Crystals
     for (let i = crystals.length - 1; i >= 0; i--) {
         const cry = crystals[i];
         const dist = ship.position.distanceTo(cry.position);
 
         if (dist < 1.8) {
-            // Picked up crystal!
             if (cargo < cargoMax) {
                 crystalCountVal++;
                 cargo = Math.min(cargoMax, cargo + 1);
@@ -695,13 +772,11 @@ function updateGameLogic() {
         }
     }
 
-    // 6. Collisions: Ship with Asteroids (Damage / Game Over)
     for (let i = 0; i < asteroids.length; i++) {
         const ast = asteroids[i];
         const dist = ship.position.distanceTo(ast.position);
 
         if (dist < (ast.userData.radius + 0.8)) {
-            // Collision!
             triggerExplosion(ship.position, 0xff3300, 30);
             gameOver("Ваш корабель розбився об астероїд!");
             break;
