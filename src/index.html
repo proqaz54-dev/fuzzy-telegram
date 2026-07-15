@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Space Miner 3D</title>
+    <title>Space Duty 3D: Black Ops</title>
     <style>
         body {
             margin: 0;
@@ -22,26 +22,31 @@
             left: 0;
             z-index: 1;
         }
+
+        /* Call of Duty / Military Sci-Fi HUD style */
         #ui {
             position: absolute;
-            top: 70px; /* Shifted down to clear the top banner ad */
-            left: 10px;
+            top: 70px;
+            left: 15px;
             z-index: 10;
             color: #fff;
             pointer-events: none;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
-        .ui-element {
-            margin-bottom: 5px;
-            font-size: 18px;
+        .hud-panel {
+            background: rgba(0, 5, 10, 0.7);
+            border-left: 4px solid #ff3300;
+            padding: 8px 15px;
+            border-radius: 0 8px 8px 0;
             font-weight: bold;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 5px 10px;
-            border-radius: 5px;
-            border: 1px solid #444;
-            display: inline-block;
-            clear: both;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            color: #00f0ff;
+            text-shadow: 0 0 5px rgba(0,240,255,0.5);
+            border: 1px solid rgba(0,240,255,0.2);
         }
+
         #controls {
             position: absolute;
             bottom: 20px;
@@ -55,59 +60,195 @@
         .joystick-container {
             width: 120px;
             height: 120px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(0, 240, 255, 0.05);
             border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.4);
+            border: 2px solid rgba(0, 240, 255, 0.3);
             position: relative;
             touch-action: none;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
         }
         .joystick-knob {
             width: 50px;
             height: 50px;
-            background: rgba(255, 255, 255, 0.7);
+            background: radial-gradient(circle, #00f0ff, #005577);
             border-radius: 50%;
             position: absolute;
             top: 35px;
             left: 35px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
         }
         .btn-action {
-            width: 80px;
-            height: 80px;
-            background: radial-gradient(circle, #ff4e50, #f9d423);
+            width: 85px;
+            height: 85px;
+            background: radial-gradient(circle, #ff1100, #aa0000);
             border-radius: 50%;
-            border: 3px solid #fff;
+            border: 3px solid #ff3300;
             color: white;
-            font-weight: bold;
-            font-size: 16px;
+            font-weight: 900;
+            font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 15px rgba(255, 78, 80, 0.4);
-            active-transform: scale(0.9);
+            box-shadow: 0 0 25px rgba(255, 50, 0, 0.7);
             touch-action: none;
-            text-shadow: 1px 1px 2px black;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px black;
         }
         .btn-action:active {
             transform: scale(0.9);
-            background: radial-gradient(circle, #f9d423, #ff4e50);
+            background: radial-gradient(circle, #aa0000, #ff1100);
         }
+
         #shop-btn {
             position: absolute;
-            top: 70px; /* Shifted down to clear the top banner ad */
-            right: 10px;
+            top: 70px;
+            right: 15px;
             z-index: 10;
-            background: #4caf50;
+            background: linear-gradient(135deg, #005f00, #00bd00);
+            border: 2px solid #00ff00;
             color: white;
-            border: none;
-            padding: 10px 15px;
-            font-size: 16px;
+            padding: 10px 18px;
+            font-size: 14px;
             font-weight: bold;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
             pointer-events: auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(0,255,0,0.3);
         }
+
+        /* Central shooter crosshairs */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            z-index: 15;
+            pointer-events: none;
+        }
+        .cross-line {
+            position: absolute;
+            background: #00f0ff;
+            opacity: 0.8;
+            box-shadow: 0 0 5px #00f0ff;
+        }
+        .cross-h {
+            width: 14px;
+            height: 2px;
+            top: 19px;
+        }
+        .cross-h.left { left: 0; }
+        .cross-h.right { right: 0; }
+        .cross-v {
+            width: 2px;
+            height: 14px;
+            left: 19px;
+        }
+        .cross-v.top { top: 0; }
+        .cross-v.bottom { bottom: 0; }
+        .cross-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #ff3300;
+            border-radius: 50%;
+            top: 18px;
+            left: 18px;
+            box-shadow: 0 0 5px #ff3300;
+        }
+
+        /* Hitmarker (Call of Duty 'X' on hit) */
+        #hitmarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            width: 24px;
+            height: 24px;
+            z-index: 16;
+            pointer-events: none;
+            display: none;
+        }
+        .hit-line {
+            position: absolute;
+            background: #ff1100;
+            box-shadow: 0 0 4px #ff1100;
+        }
+        .hit-line-1 { width: 100%; height: 2px; top: 11px; left: 0; }
+        .hit-line-2 { height: 100%; width: 2px; left: 11px; top: 0; }
+
+        /* Tactical Shooter Player HP and Ammo HUD */
+        #tactical-hud-left {
+            position: absolute;
+            bottom: 20px;
+            left: 180px;
+            z-index: 10;
+            color: white;
+            pointer-events: none;
+            font-family: monospace;
+        }
+        .hud-bar-container {
+            width: 180px;
+            height: 12px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #00f0ff;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+            box-shadow: 0 0 10px rgba(0,240,255,0.2);
+        }
+        .hud-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #005577, #00f0ff);
+            transition: width 0.1s ease;
+        }
+        .hud-bar-fill.hp {
+            background: linear-gradient(90deg, #aa0000, #ff3300);
+        }
+
+        #tactical-hud-right {
+            position: absolute;
+            bottom: 20px;
+            right: 180px;
+            z-index: 10;
+            color: white;
+            pointer-events: none;
+            text-align: right;
+            font-family: monospace;
+        }
+        .ammo-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00f0ff;
+            text-shadow: 0 0 10px rgba(0,240,255,0.6);
+            margin-bottom: 2px;
+        }
+        .ammo-sub {
+            font-size: 12px;
+            color: #888;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Damage flash border */
+        #damage-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            border: 0px solid rgba(255, 0, 0, 0);
+            box-sizing: border-box;
+            z-index: 14;
+            pointer-events: none;
+            transition: border 0.1s ease, background 0.1s ease;
+        }
+
+        /* GDevelop style Modals & Ads */
         #shop-modal {
             position: absolute;
             top: 50%;
@@ -115,58 +256,62 @@
             transform: translate(-50%, -50%);
             width: 85%;
             max-width: 480px;
-            background: rgba(20, 20, 30, 0.95);
-            border: 2px solid #00f0ff;
-            border-radius: 10px;
+            background: rgba(5, 10, 20, 0.95);
+            border: 2px solid #ff3300;
+            border-radius: 8px;
             z-index: 20;
             color: white;
             padding: 20px;
             display: none;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+            box-shadow: 0 0 30px rgba(255, 50, 0, 0.4);
         }
         #shop-modal h2 {
             margin-top: 0;
-            color: #00f0ff;
+            color: #ff3300;
             text-align: center;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
         .shop-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid #222;
         }
         .shop-item button {
-            background: #00f0ff;
-            color: #000;
+            background: #ff3300;
+            color: white;
             border: none;
-            padding: 5px 12px;
+            padding: 6px 14px;
             font-weight: bold;
             border-radius: 3px;
             cursor: pointer;
+            text-transform: uppercase;
         }
         .shop-item button:disabled {
-            background: #555;
-            color: #aaa;
+            background: #444;
+            color: #888;
             cursor: not-allowed;
         }
         #close-shop {
-            background: #ff4e50;
+            background: #444;
             color: white;
             border: none;
             padding: 8px 15px;
-            border-radius: 5px;
+            border-radius: 4px;
             float: right;
             margin-top: 15px;
             cursor: pointer;
         }
+
         #intro-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: radial-gradient(circle, #1a1a2e, #16213e, #0f172a);
+            background: radial-gradient(circle, #2a0000, #0a0000, #000);
             z-index: 30;
             display: flex;
             flex-direction: column;
@@ -176,42 +321,44 @@
             text-align: center;
         }
         #intro-screen h1 {
-            font-size: 42px;
+            font-size: 52px;
             margin-bottom: 5px;
-            background: linear-gradient(45deg, #00f0ff, #ff007f);
+            background: linear-gradient(45deg, #ff3300, #ffcc00);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            text-shadow: 0 0 40px rgba(255, 50, 0, 0.4);
+            font-weight: 900;
+            letter-spacing: 3px;
         }
         #intro-screen p {
             font-size: 16px;
             color: #ccc;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             max-width: 600px;
             padding: 0 20px;
+            line-height: 1.6;
         }
         #start-btn {
-            background: linear-gradient(135deg, #00f0ff, #0072ff);
+            background: linear-gradient(135deg, #ff3300, #ff8800);
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 20px;
+            padding: 18px 50px;
+            font-size: 22px;
             font-weight: bold;
-            border-radius: 30px;
+            border-radius: 4px;
             cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
-            transition: transform 0.2s;
+            box-shadow: 0 0 25px rgba(255, 50, 0, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
-        #start-btn:active {
-            transform: scale(0.95);
-        }
+
         #gameover-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 25;
             display: none;
             flex-direction: column;
@@ -221,23 +368,27 @@
             text-align: center;
         }
         #gameover-screen h1 {
-            font-size: 48px;
-            color: #ff4e50;
+            font-size: 56px;
+            color: #ff1100;
             margin-bottom: 10px;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(255,0,0,0.5);
         }
         #restart-btn {
-            background: #ff4e50;
+            background: #ff1100;
             color: white;
             border: none;
             padding: 12px 30px;
             font-size: 18px;
             font-weight: bold;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
             margin-top: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        /* === GOOGLE ADMOB SIMULATION STYLES === */
+        /* === GOOGLE ADMOB SIMULATION === */
         #ad-banner {
             position: absolute;
             top: 0;
@@ -245,8 +396,8 @@
             transform: translateX(-50%);
             width: 468px;
             height: 60px;
-            background: linear-gradient(90deg, #333, #111, #333);
-            border: 2px solid #555;
+            background: linear-gradient(90deg, #111, #222, #111);
+            border: 2px solid #333;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             z-index: 100;
             display: flex;
@@ -260,7 +411,7 @@
             box-sizing: border-box;
         }
         .ad-tag {
-            background: #f9d423;
+            background: #ffcc00;
             color: black;
             font-weight: bold;
             padding: 2px 6px;
@@ -275,17 +426,16 @@
         }
         .ad-title {
             font-weight: bold;
-            color: #00f0ff;
+            color: #ff3300;
         }
         .ad-btn-action {
-            background: #ff007f;
+            background: #ff3300;
             border: none;
             color: white;
             padding: 4px 10px;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            text-shadow: 1px 1px 1px black;
         }
         .ad-close {
             color: #888;
@@ -294,7 +444,6 @@
             font-weight: bold;
         }
 
-        /* Fullscreen Interstitial Ad Modal */
         #ad-interstitial {
             position: absolute;
             top: 0;
@@ -312,13 +461,13 @@
         #ad-interstitial-content {
             width: 80%;
             max-width: 400px;
-            background: linear-gradient(135deg, #1e1e30, #0d0d1a);
-            border: 3px solid #ff007f;
-            border-radius: 12px;
+            background: #0f0505;
+            border: 3px solid #ff3300;
+            border-radius: 8px;
             padding: 30px;
             text-align: center;
             position: relative;
-            box-shadow: 0 0 30px rgba(255, 0, 127, 0.4);
+            box-shadow: 0 0 30px rgba(255, 50, 0, 0.4);
         }
         .ad-interstitial-close {
             position: absolute;
@@ -334,7 +483,6 @@
             cursor: pointer;
         }
 
-        /* Rewarded Ad Video Overlay */
         #ad-rewarded {
             position: absolute;
             top: 0;
@@ -356,7 +504,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: radial-gradient(circle, #2a0845, #6441a5, #000);
+            background: radial-gradient(circle, #3a0000, #150000, #000);
             position: relative;
         }
         #ad-rewarded-timer {
@@ -364,10 +512,10 @@
             top: 20px;
             right: 20px;
             background: rgba(0,0,0,0.8);
-            border: 2px solid #00f0ff;
-            color: #00f0ff;
+            border: 2px solid #ff3300;
+            color: #ff3300;
             padding: 8px 15px;
-            border-radius: 20px;
+            border-radius: 4px;
             font-size: 18px;
             font-weight: bold;
         }
@@ -383,13 +531,13 @@
             animation: pulse-glow 2s infinite alternate;
         }
         @keyframes pulse-glow {
-            from { transform: scale(0.98); filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.3)); }
-            to { transform: scale(1.02); filter: drop-shadow(0 0 25px rgba(255, 0, 127, 0.6)); }
+            from { transform: scale(0.98); filter: drop-shadow(0 0 10px rgba(255, 50, 0, 0.3)); }
+            to { transform: scale(1.02); filter: drop-shadow(0 0 25px rgba(255, 50, 0, 0.6)); }
         }
     </style>
 </head>
 <body>
-    <!-- SIMULATED GOOGLE ADMOB BANNER AD -->
+    <!-- AD BANNER -->
     <div id="ad-banner">
         <div class="ad-content">
             <span class="ad-tag">Реклама</span>
@@ -397,91 +545,131 @@
             <span id="banner-desc">Забирай +500 фріспінів прямо зараз! 🎰</span>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <button class="ad-btn-action" onclick="alert('Дякуємо за клік! Партнери платять нам $0.50 за цей перехід! 😎')">ГРАТИ</button>
+            <button class="ad-btn-action" onclick="alert('Дякуємо за клік! Нам нараховано $0.50! 😎')">ГРАТИ</button>
             <span class="ad-close" id="close-banner-btn">&times;</span>
         </div>
     </div>
 
-    <!-- FULLSCREEN INTERSTITIAL AD -->
+    <!-- INTERSTITIAL AD -->
     <div id="ad-interstitial">
         <div id="ad-interstitial-content">
             <button class="ad-interstitial-close" id="close-interstitial-btn">X</button>
-            <span class="ad-tag" style="display: inline-block; margin-bottom: 15px;">Спонсорська Реклама</span>
-            <h2 style="color: #ff007f; margin: 0 0 10px 0;">CryptoSpace Wallet</h2>
+            <span class="ad-tag" style="display: inline-block; margin-bottom: 15px;">Спонсор</span>
+            <h2 style="color: #ff3300; margin: 0 0 10px 0;">CryptoSpace Wallet</h2>
             <p style="color: #ccc; font-size: 14px; margin-bottom: 25px;">Зберігайте ваші крипто-активи та здобуті космічні кристали у найнадійнішому децентралізованому гаманці нового покоління!</p>
-            <button class="btn-action" style="width: auto; height: auto; border-radius: 8px; padding: 12px 25px; margin: 0 auto; font-size: 16px;" onclick="alert('Redirecting to CryptoSpace Store...')">ЗАВАНТАЖИТИ</button>
+            <button class="btn-action" style="width: auto; height: auto; border-radius: 4px; padding: 12px 25px; margin: 0 auto; font-size: 16px;" onclick="alert('Redirecting...')">ЗАВАНТАЖИТИ</button>
         </div>
     </div>
 
-    <!-- REWARDED VIDEO AD SIMULATOR -->
+    <!-- REWARDED AD -->
     <div id="ad-rewarded">
         <div id="ad-rewarded-video-simulation">
             <div class="ad-tag video-ad-badge">Рекламний Відеоролик</div>
             <div id="ad-rewarded-timer">Зачекайте: 5с</div>
 
             <div class="video-promo-content">
-                <h1 style="font-size: 36px; margin: 0 0 15px 0; color: #00f0ff;">🚀 RAID: SHADOW LEGENDS 🚀</h1>
+                <h1 style="font-size: 36px; margin: 0 0 15px 0; color: #ff3300;">🚀 RAID: SHADOW LEGENDS 🚀</h1>
                 <p style="font-size: 18px; color: #eee; line-height: 1.6;">Грайте у найкращу покрокову рольову фентезі-гру безкоштовно! Отримайте легендарного героя після закінчення перегляду відеоролика!</p>
-                <div style="margin-top: 30px; font-size: 24px; color: #ff007f; font-weight: bold;">Трансляція ігрового процесу... ⚔️</div>
+                <div style="margin-top: 30px; font-size: 24px; color: #ffcc00; font-weight: bold;">Трансляція ігрового процесу... ⚔️</div>
             </div>
         </div>
     </div>
 
+    <!-- START INTRO -->
     <div id="intro-screen">
-        <h1>SPACE MINER 3D</h1>
-        <p>Керуйте космічним кораблем за допомогою лівого джойстика.<br>Збирайте кристали та руду, стріляйте по астероїдах правою кнопкою LASER.<br>Продавайте ресурси, купуйте покращення та остерігайтеся зіткнень!</p>
-        <button id="start-btn">ПОЧАТИ ГРУ</button>
+        <h1>SPACE DUTY 3D</h1>
+        <p>Керуйте бойовим крейсером за допомогою лівого джойстика.<br>Знищуйте астероїди, збирайте кристали та **знищуйте ворожі дрони прибульців (Alien Drones)**!<br>Перезаряджайте зброю, покращуйте щити на базі та виживайте у зоні бойових дій!</p>
+        <button id="start-btn">ПОЧАТИ БІЙ</button>
     </div>
 
+    <!-- GAMEOVER SCREEN -->
     <div id="gameover-screen">
-        <h1>КІНЕЦЬ ГРИ</h1>
+        <h1>МІСІЮ ПРОВАЛЕНО</h1>
         <p id="gameover-stats">Ви зібрали: 0 кристалів</p>
         <div style="display: flex; gap: 15px; margin-top: 15px;">
-            <button id="restart-btn" style="margin-top: 0;">СПРОБУВАТИ ЗНОВУ</button>
-            <button id="revive-ad-btn" style="background: #e0a800; color: black; border: none; padding: 12px 20px; font-size: 18px; font-weight: bold; border-radius: 5px; cursor: pointer;">ОЖИТИ ЗА РЕКЛАМУ 🎬</button>
+            <button id="restart-btn" style="margin-top: 0;">НОВИЙ БІЙ</button>
+            <button id="revive-ad-btn" style="background: #ffcc00; color: black; border: none; padding: 12px 20px; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer;">ВІДРОДИТИСЯ (РЕКЛАМА) 🎬</button>
         </div>
+    </div>
+
+    <!-- HITMARKER indicator -->
+    <div id="hitmarker">
+        <div class="hit-line hit-line-1"></div>
+        <div class="hit-line hit-line-2"></div>
+    </div>
+
+    <!-- DAMAGE FLASH BORDER -->
+    <div id="damage-indicator"></div>
+
+    <!-- FIRST PERSON CROSSHAIRS -->
+    <div id="crosshair">
+        <div class="cross-line cross-h left"></div>
+        <div class="cross-line cross-h right"></div>
+        <div class="cross-line cross-v top"></div>
+        <div class="cross-line cross-v bottom"></div>
+        <div class="cross-dot"></div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <div id="ui">
-        <div class="ui-element">Кристали: <span id="crystal-count">0</span></div><br>
-        <div class="ui-element">Гроші: $<span id="money-count">0</span></div><br>
-        <div class="ui-element">Паливо: <span id="fuel-count">100</span>%</div><br>
-        <div class="ui-element">Вантаж: <span id="cargo-count">0</span> / <span id="cargo-max">20</span></div>
+    <!-- TACTICAL SHOOTER HUD LEFT -->
+    <div id="tactical-hud-left">
+        <div style="font-size: 14px; font-weight: bold; color: #ff3300; letter-spacing: 1px;">ЗДОРОВ'Я (HP)</div>
+        <div class="hud-bar-container" style="border-color: #ff3300;">
+            <div id="hp-bar-fill" class="hud-bar-fill hp" style="width: 100%;"></div>
+        </div>
+        <div style="font-size: 14px; font-weight: bold; color: #00f0ff; letter-spacing: 1px; margin-top: 10px;">ЩИТИ (SHIELD)</div>
+        <div class="hud-bar-container" style="border-color: #00f0ff;">
+            <div id="shield-bar-fill" class="hud-bar-fill" style="width: 100%;"></div>
+        </div>
     </div>
 
-    <button id="shop-btn">КОСМІЧНА СТАНЦІЯ (МАГАЗИН / ПРОДАЖ)</button>
+    <!-- TACTICAL SHOOTER HUD RIGHT -->
+    <div id="tactical-hud-right">
+        <div class="ammo-text"><span id="ammo-clip">30</span>/<span id="ammo-max">30</span></div>
+        <div class="ammo-sub">БОЄПРИПАСИ / ЗБРОЯ</div>
+        <button id="reload-btn" style="margin-top: 8px; background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 4px 10px; font-family: monospace; border-radius: 3px; font-weight: bold; cursor: pointer; text-transform: uppercase;">RELOAD (R)</button>
+    </div>
 
+    <div id="ui">
+        <div class="hud-panel">Кристали: <span id="crystal-count">0</span></div>
+        <div class="hud-panel">Кредити: $<span id="money-count">0</span></div>
+        <div class="hud-panel">Паливо: <span id="fuel-count">100</span>%</div>
+        <div class="hud-panel">Вантаж: <span id="cargo-count">0</span> / <span id="cargo-max">20</span></div>
+    </div>
+
+    <button id="shop-btn">ВІЙСЬКОВА СТАНЦІЯ (МАГАЗИН / ПРОДАЖ)</button>
+
+    <!-- SHOP MODAL -->
     <div id="shop-modal">
-        <h2>КОСМІЧНА СТАНЦІЯ</h2>
-        <p>Тут ви можете продати руду та кристали та покращити свій корабель!</p>
+        <h2>АРСЕНАЛ СТАНЦІЇ</h2>
+        <p>Тут ви можете обміняти кристали на кредити, полагодити щити та вдосконалити зброю!</p>
 
         <div class="shop-item">
-            <span>Продати весь вантаж:</span>
+            <span>Здати вантаж:</span>
             <div style="display: flex; gap: 5px;">
                 <button id="sell-all-btn">Продати</button>
-                <button id="sell-all-double-btn" style="background: #ff9800; color: white;">2x Грошей за Відео 🎬</button>
+                <button id="sell-all-double-btn" style="background: #ffaa00; color: black;">2x Кредитів 🎬</button>
             </div>
         </div>
         <div class="shop-item">
-            <span>Заправити паливо ($10):</span>
+            <span>Заправити паливо та відновити щити ($10):</span>
             <div style="display: flex; gap: 5px;">
-                <button id="refuel-btn">Заправити</button>
-                <button id="refuel-ad-btn" style="background: #00bcd4; color: black;">Заправити безкоштовно 🎬</button>
+                <button id="refuel-btn">Полагодити</button>
+                <button id="refuel-ad-btn" style="background: #00bcd4; color: black;">Безкоштовно 🎬</button>
             </div>
         </div>
         <div class="shop-item">
-            <span>Збільшити вантажний відсік (+10) - $50:</span>
-            <button id="upgrade-cargo-btn">Купити</button>
+            <span>Об'єм магазину набоїв (+10) - $50:</span>
+            <button id="upgrade-cargo-btn">Покращити</button>
         </div>
         <div class="shop-item">
-            <span>Потужність лазера (Швидше руйнування) - $100:</span>
-            <button id="upgrade-laser-btn">Купити</button>
+            <span>Швидкість вогню (Потужність лазера) - $100:</span>
+            <button id="upgrade-laser-btn">Покращити</button>
         </div>
         <div class="shop-item">
-            <span>Швидкість корабля (+20%) - $75:</span>
-            <button id="upgrade-speed-btn">Купити</button>
+            <span>Маневреність двигунів (+20%) - $75:</span>
+            <button id="upgrade-speed-btn">Покращити</button>
         </div>
 
         <button id="close-shop">Закрити</button>
@@ -491,7 +679,7 @@
         <div class="joystick-container" id="joystick-container">
             <div class="joystick-knob" id="joystick-knob"></div>
         </div>
-        <button class="btn-action" id="laser-btn">LASER</button>
+        <button class="btn-action" id="laser-btn">FIRE</button>
     </div>
 </body>
 </html>
