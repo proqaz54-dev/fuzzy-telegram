@@ -1,0 +1,75 @@
+name: Build SpaceMiner3D APK
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install Webpack Dependencies
+      run: npm ci
+
+    - name: Compile Webgame Assets
+      run: npm run build
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Cache Gradle Packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Make Gradle Wrapper Executable
+      run: chmod +x android/gradlew
+      working-directory: android
+
+    - name: Build Android Release APK
+      run: ./gradlew assembleRelease
+      working-directory: android
+
+    - name: Align Release APK
+      run: |
+        ${{ env.ANDROID_HOME }}/build-tools/35.0.0/zipalign -v -p 4 android/app/build/outputs/apk/release/app-release-unsigned.apk space-miner-aligned.apk
+
+    - name: Generate Release Keystore Dynamically
+      run: |
+        keytool -genkey -v -keystore action-release-key.keystore -alias space_miner_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=MineGame, OU=GameDev, O=SpaceMiner, L=Kyiv, S=Kyiv, C=UA"
+
+    - name: Sign Release APK
+      run: |
+        ${{ env.ANDROID_HOME }}/build-tools/35.0.0/apksigner sign --ks action-release-key.keystore --ks-key-alias space_miner_alias --ks-pass pass:123456 --key-pass pass:123456 --out SpaceMiner3D.apk space-miner-aligned.apk
+
+    - name: Upload Finished SpaceMiner3D APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: SpaceMiner3D-APK
+        path: SpaceMiner3D.apk
+        if-no-files-found: error
+        retention-days: 14

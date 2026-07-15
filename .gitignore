@@ -4,3 +4,8 @@ build/
 .gradle/
 *.apk
 *.log
+android/app/src/main/assets/bundle.js
+android/app/src/main/assets/bundle.js.LICENSE.txt
+android/app/src/main/assets/index.html
+my-release-key.keystore
+*.idsig
