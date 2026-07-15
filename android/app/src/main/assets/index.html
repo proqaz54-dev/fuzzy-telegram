@@ -1,0 +1,231 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Space Miner 3D</title><style>body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            color: #fff;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .ui-element {
+            margin-bottom: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            display: inline-block;
+            clear: both;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        .joystick-container {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            position: relative;
+            touch-action: none;
+        }
+        .joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .btn-action {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #ff4e50, #f9d423);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 15px rgba(255, 78, 80, 0.4);
+            active-transform: scale(0.9);
+            touch-action: none;
+            text-shadow: 1px 1px 2px black;
+        }
+        .btn-action:active {
+            transform: scale(0.9);
+            background: radial-gradient(circle, #f9d423, #ff4e50);
+        }
+        #shop-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #shop-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 450px;
+            background: rgba(20, 20, 30, 0.95);
+            border: 2px solid #00f0ff;
+            border-radius: 10px;
+            z-index: 20;
+            color: white;
+            padding: 20px;
+            display: none;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+        #shop-modal h2 {
+            margin-top: 0;
+            color: #00f0ff;
+            text-align: center;
+        }
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #333;
+        }
+        .shop-item button {
+            background: #00f0ff;
+            color: #000;
+            border: none;
+            padding: 5px 15px;
+            font-weight: bold;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .shop-item button:disabled {
+            background: #555;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        #close-shop {
+            background: #ff4e50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            float: right;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+        #intro-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, #1a1a2e, #16213e, #0f172a);
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+        #intro-screen h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00f0ff, #ff007f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+        }
+        #intro-screen p {
+            font-size: 18px;
+            color: #ccc;
+            margin-bottom: 30px;
+            max-width: 600px;
+            padding: 0 20px;
+        }
+        #start-btn {
+            background: linear-gradient(135deg, #00f0ff, #0072ff);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+            transition: transform 0.2s;
+        }
+        #start-btn:active {
+            transform: scale(0.95);
+        }
+        #gameover-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 25;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+        #gameover-screen h1 {
+            font-size: 48px;
+            color: #ff4e50;
+            margin-bottom: 20px;
+        }
+        #restart-btn {
+            background: #ff4e50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }</style></head><body><div id="intro-screen"><h1>SPACE MINER 3D</h1><p>Керуйте космічним кораблем за допомогою лівого джойстика.<br>Збирайте кристали та руду, стріляйте по астероїдах правою кнопкою LASER.<br>Продавайте ресурси, купуйте покращення та остерігайтеся зіткнень!</p><button id="start-btn">ПОЧАТИ ГРУ</button></div><div id="gameover-screen"><h1>КІНЕЦЬ ГРИ</h1><p id="gameover-stats">Ви зібрали: 0 кристалів</p><button id="restart-btn">СПРОБУВАТИ ЗНОВУ</button></div><div id="canvas-container"></div><div id="ui"><div class="ui-element">Кристали: <span id="crystal-count">0</span></div><br><div class="ui-element">Гроші: $<span id="money-count">0</span></div><br><div class="ui-element">Паливо: <span id="fuel-count">100</span>%</div><br><div class="ui-element">Вантаж: <span id="cargo-count">0</span> / <span id="cargo-max">20</span></div></div><button id="shop-btn">КОСМІЧНА СТАНЦІЯ (МАГАЗИН / ПРОДАЖ)</button><div id="shop-modal"><h2>КОСМІЧНА СТАНЦІЯ</h2><p>Тут ви можете продати руду та кристали та покращити свій корабель!</p><div class="shop-item"><span>Продати весь вантаж:</span> <button id="sell-all-btn">Продати</button></div><div class="shop-item"><span>Заправити паливо ($10):</span> <button id="refuel-btn">Заправити</button></div><div class="shop-item"><span>Збільшити вантажний відсік (+10) - $50:</span> <button id="upgrade-cargo-btn">Купити</button></div><div class="shop-item"><span>Потужність лазера (Швидше руйнування) - $100:</span> <button id="upgrade-laser-btn">Купити</button></div><div class="shop-item"><span>Швидкість корабля (+20%) - $75:</span> <button id="upgrade-speed-btn">Купити</button></div><button id="close-shop">Закрити</button></div><div id="controls"><div class="joystick-container" id="joystick-container"><div class="joystick-knob" id="joystick-knob"></div></div><button class="btn-action" id="laser-btn">LASER</button></div><script defer="defer" src="bundle.js"></script></body></html>
