@@ -1,1043 +1,1438 @@
 import * as THREE from 'three';
 
-// State variables
-let scene, camera, renderer;
-let ship;
-let blasterRifle; // First-person blaster rifle mesh
-let asteroids = [];
-let crystals = [];
-let enemyDrones = []; // Hostile AI drones
-let lasers = []; // Player laser bolts
-let enemyLasers = []; // Enemy drone laser bolts
-let particles = [];
-let spaceStation;
+// --- GAME STATE ---
+let state = {
+    cash: 100, // starting capital in Hryvnias (₴)
+    cashPerSecond: 0,
+    memesPublishedCount: 0,
+    totalViews: 0,
+    subscribers: 0,
+    activeTemplateIndex: 0,
+    fontSize: 42,
+    fontColor: '#ffffff',
+    audioEnabled: true,
+    withdrawalAmount: 1000,
+    selectedWithdrawMethod: 'mono',
+    withdrawCardNumber: '',
+    currentTriviaQuestionIndex: 0,
+    isMemePublishing: false
+};
 
-// Game stats
-let money = 0;
-let cargo = 0;
-let cargoMax = 20;
-let fuel = 100;
-let laserDamage = 1;
-let shipSpeedMultiplier = 1;
-
-// Shooter Specific Stats
-let playerHP = 100;
-let playerShield = 100;
-let ammoClip = 30;
-let ammoClipMax = 30;
-let isReloading = false;
-
-// Upgrade costs
-let upgradeCargoCost = 50;
-let upgradeLaserCost = 100;
-let upgradeSpeedCost = 75;
-
-// Joystick control state
-let moveVector = new THREE.Vector2(0, 0);
-let joystickActive = false;
-let joystickStartPos = new THREE.Vector2();
-
-// Game states
-let isPlaying = false;
-let crystalCountVal = 0;
-let frameCount = 0;
-
-// Camera Recoil
-let cameraShakeAmount = 0;
-let weaponSwayTime = 0;
-
-// Initialize WebGL/Three.js Scene
-function init() {
-    const container = document.getElementById('canvas-container');
-
-    // Scene setup
-    scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0505, 0.018); // Dark military red-shaded space fog
-
-    // Camera setup
-    camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 4, 15);
-
-    // Renderer setup
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(scene.fog.color);
-    container.appendChild(renderer.domElement);
-
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x221111);
-    scene.add(ambientLight);
-
-    const dirLight = new THREE.DirectionalLight(0xff5533, 1.5); // Intense red-orange sun light
-    dirLight.position.set(10, 30, 15);
-    scene.add(dirLight);
-
-    const pointLight = new THREE.PointLight(0xff3300, 2.0, 60);
-    pointLight.position.set(0, 0, 0);
-    scene.add(pointLight);
-
-    // Create Space background starfield
-    createStarfield();
-
-    // Create Player Spaceship Wrapper
-    ship = new THREE.Group();
-    ship.position.set(0, 0, 10);
-    scene.add(ship);
-
-    // Create 3D Tactical Blaster Rifle attached directly to the camera (First-Person Call of Duty Style)
-    createTacticalBlaster();
-
-    // Create Military Defense Space Station (Base)
-    createSpaceStation();
-
-    // Populate Asteroids, Crystals & Hostile AI Drones
-    for (let i = 0; i < 40; i++) {
-        spawnAsteroid();
-    }
-    for (let i = 0; i < 15; i++) {
-        spawnCrystal();
-    }
-    for (let i = 0; i < 8; i++) {
-        spawnEnemyDrone();
+// --- WEB AUDIO API SYNTHESIZER ---
+class BrainrotSynth {
+    constructor() {
+        this.ctx = null;
     }
 
-    // Setup inputs & UI listeners
-    setupControls();
-    setupAds();
-
-    // Resize handler
-    window.addEventListener('resize', onWindowResize);
-
-    // Start animation loop
-    animate();
-}
-
-function createStarfield() {
-    const starsGeometry = new THREE.BufferGeometry();
-    const starsCount = 1200;
-    const starPositions = new Float32Array(starsCount * 3);
-
-    for (let i = 0; i < starsCount * 3; i += 3) {
-        starPositions[i] = (Math.random() - 0.5) * 600;
-        starPositions[i+1] = (Math.random() - 0.5) * 300 - 40;
-        starPositions[i+2] = (Math.random() - 0.5) * 600;
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
     }
 
-    starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({
-        color: 0xffaa66, // Orange-tinted dust stars
-        size: 0.9,
-        transparent: true,
-        opacity: 0.8
-    });
+    playCoin() {
+        if (!state.audioEnabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
 
-    const starfield = new THREE.Points(starsGeometry, starMaterial);
-    scene.add(starfield);
-}
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+        osc.frequency.exponentialRampToValueAtTime(1174.66, this.ctx.currentTime + 0.08); // D6
 
-function createTacticalBlaster() {
-    blasterRifle = new THREE.Group();
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
 
-    // Rifle Main Barrel (Futuristic carbon-metallic box)
-    const barrelGeom = new THREE.BoxGeometry(0.3, 0.25, 1.8);
-    const metalMat = new THREE.MeshStandardMaterial({
-        color: 0x11161b,
-        metalness: 0.9,
-        roughness: 0.1,
-        emissive: 0x030508
-    });
-    const barrel = new THREE.Mesh(barrelGeom, metalMat);
-    barrel.position.set(0, 0, -0.6);
-    blasterRifle.add(barrel);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
 
-    // Laser Sight Scope with holographic light
-    const scopeGeom = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8);
-    scopeGeom.rotateX(Math.PI / 2);
-    const scope = new THREE.Mesh(scopeGeom, metalMat);
-    scope.position.set(0, 0.2, -0.4);
-    blasterRifle.add(scope);
-
-    const scopeLensGeom = new THREE.CircleGeometry(0.06, 8);
-    const redGlowMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const lens = new THREE.Mesh(scopeLensGeom, redGlowMat);
-    lens.position.set(0, 0.2, -0.65);
-    blasterRifle.add(lens);
-
-    // High-tech heat venting cells
-    const ventGeom = new THREE.BoxGeometry(0.34, 0.12, 0.8);
-    const ventMat = new THREE.MeshStandardMaterial({
-        color: 0x330000,
-        emissive: 0xff1100,
-        metalness: 0.5
-    });
-    const vents = new THREE.Mesh(ventGeom, ventMat);
-    vents.position.set(0, -0.05, -0.8);
-    blasterRifle.add(vents);
-
-    // Attach the weapon group to the camera for true first person shooter weapon modeling
-    camera.add(blasterRifle);
-
-    // Position weapon in the bottom-right relative to camera viewport
-    blasterRifle.position.set(1.1, -0.9, -1.8);
-    blasterRifle.rotation.set(-0.05, -0.15, 0);
-    scene.add(camera);
-}
-
-function createSpaceStation() {
-    spaceStation = new THREE.Group();
-
-    // Heavy military defense armor core ring
-    const ringGeom = new THREE.TorusGeometry(10, 1.6, 16, 64);
-    const stationMat = new THREE.MeshStandardMaterial({
-        color: 0x242b35,
-        metalness: 0.85,
-        roughness: 0.2
-    });
-    const ring = new THREE.Mesh(ringGeom, stationMat);
-    ring.rotateX(Math.PI / 2);
-    spaceStation.add(ring);
-
-    // Defensive laser batteries on station
-    const turretGeom = new THREE.CylinderGeometry(0.4, 0.4, 2.5, 8);
-    turretGeom.rotateX(Math.PI / 2);
-    const turret = new THREE.Mesh(turretGeom, stationMat);
-    turret.position.set(0, 3, 0);
-    spaceStation.add(turret);
-
-    const coreGeom = new THREE.SphereGeometry(3.5, 16, 16);
-    const coreMat = new THREE.MeshStandardMaterial({
-        color: 0xff3300,
-        emissive: 0x661100,
-        metalness: 0.9,
-        roughness: 0.1
-    });
-    const core = new THREE.Mesh(coreGeom, coreMat);
-    spaceStation.add(core);
-
-    spaceStation.position.set(0, 0, -30);
-    scene.add(spaceStation);
-
-    // Glowing military beacon
-    const beaconGeom = new THREE.SphereGeometry(0.8, 8, 8);
-    const beaconMat = new THREE.MeshBasicMaterial({ color: 0xff1100 });
-    const beacon = new THREE.Mesh(beaconGeom, beaconMat);
-    beacon.position.set(0, 7, -30);
-    scene.add(beacon);
-}
-
-function spawnAsteroid() {
-    const r = 1.2 + Math.random() * 2.8;
-    const geom = new THREE.DodecahedronGeometry(r, 1);
-
-    const position = geom.attributes.position;
-    for (let i = 0; i < position.count; i++) {
-        const x = position.getX(i);
-        const y = position.getY(i);
-        const z = position.getZ(i);
-        const offset = 1 + (Math.random() - 0.5) * 0.28;
-        position.setXYZ(i, x * offset, y * offset, z * offset);
-    }
-    geom.computeVertexNormals();
-
-    const mat = new THREE.MeshStandardMaterial({
-        color: 0x483d35,
-        roughness: 0.9,
-        metalness: 0.2
-    });
-    const mesh = new THREE.Mesh(geom, mat);
-
-    resetAsteroidPosition(mesh);
-
-    mesh.userData = {
-        radius: r,
-        health: Math.ceil(r * 4),
-        maxHealth: Math.ceil(r * 4),
-        rotSpeed: {
-            x: (Math.random() - 0.5) * 0.02,
-            y: (Math.random() - 0.5) * 0.02,
-            z: (Math.random() - 0.5) * 0.02
-        }
-    };
-
-    scene.add(mesh);
-    asteroids.push(mesh);
-}
-
-function resetAsteroidPosition(mesh) {
-    let x, z;
-    do {
-        x = (Math.random() - 0.5) * 180;
-        z = (Math.random() - 0.5) * 180;
-    } while (
-        Math.hypot(x, z - 10) < 18 ||
-        Math.hypot(x, z + 30) < 22
-    );
-    mesh.position.set(x, 0, z);
-}
-
-function spawnCrystal() {
-    const geom = new THREE.OctahedronGeometry(0.8, 0);
-    const mat = new THREE.MeshStandardMaterial({
-        color: 0xffbb00, // Golden glowing core crystal
-        emissive: 0x553300,
-        metalness: 0.3,
-        roughness: 0.1,
-        transparent: true,
-        opacity: 0.95
-    });
-    const mesh = new THREE.Mesh(geom, mat);
-    resetCrystalPosition(mesh);
-
-    mesh.userData = {
-        rotSpeed: 0.03 + Math.random() * 0.02
-    };
-    scene.add(mesh);
-    crystals.push(mesh);
-}
-
-function resetCrystalPosition(mesh) {
-    let x, z;
-    do {
-        x = (Math.random() - 0.5) * 150;
-        z = (Math.random() - 0.5) * 150;
-    } while (
-        Math.hypot(x, z - 10) < 12 ||
-        Math.hypot(x, z + 30) < 18
-    );
-    mesh.position.set(x, 0, z);
-}
-
-function spawnEnemyDrone() {
-    // Futuristic combat alien drone (sharp Octahedron armor)
-    const drone = new THREE.Group();
-
-    const geom = new THREE.OctahedronGeometry(1.2, 0);
-    const armorMat = new THREE.MeshStandardMaterial({
-        color: 0xff1100, // Blood red military hostile
-        emissive: 0x3a0000,
-        metalness: 0.9,
-        roughness: 0.1
-    });
-    const hull = new THREE.Mesh(geom, armorMat);
-    drone.add(hull);
-
-    // Side plasma wing guards
-    const guardGeom = new THREE.BoxGeometry(2.4, 0.2, 0.4);
-    const wingGuard = new THREE.Mesh(guardGeom, armorMat);
-    drone.add(wingGuard);
-
-    resetEnemyDronePosition(drone);
-
-    drone.userData = {
-        health: 5,
-        maxHealth: 5,
-        velocity: new THREE.Vector3(),
-        fireCooldown: Math.random() * 60
-    };
-
-    scene.add(drone);
-    enemyDrones.push(drone);
-}
-
-function resetEnemyDronePosition(drone) {
-    let x, z;
-    do {
-        x = (Math.random() - 0.5) * 160;
-        z = (Math.random() - 0.5) * 160;
-    } while (
-        Math.hypot(x, z - 10) < 25 ||
-        Math.hypot(x, z + 30) < 25
-    );
-    drone.position.set(x, (Math.random() - 0.5) * 10, z);
-}
-
-function triggerHitmarker() {
-    const h = document.getElementById('hitmarker');
-    h.style.display = 'block';
-    setTimeout(() => {
-        h.style.display = 'none';
-    }, 120);
-}
-
-function triggerDamageFlash() {
-    const d = document.getElementById('damage-indicator');
-    d.style.border = '20px solid rgba(255, 0, 0, 0.8)';
-    d.style.background = 'rgba(255, 0, 0, 0.15)';
-    setTimeout(() => {
-        d.style.border = '0px solid rgba(255, 0, 0, 0)';
-        d.style.background = 'rgba(255, 0, 0, 0)';
-    }, 150);
-}
-
-function fireLaser() {
-    if (fuel <= 0 || !isPlaying || isReloading) return;
-    if (ammoClip <= 0) {
-        reloadBlaster();
-        return;
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
     }
 
-    // Firing Recoil Shake & Sway Pull-Up
-    cameraShakeAmount = 0.15;
-    blasterRifle.position.z += 0.25; // Visual recoil kick back
-    blasterRifle.position.y += 0.1;  // Recoil pull up
+    playCash() {
+        if (!state.audioEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
 
-    // Spawn player plasma tracer bolt
-    const laserGeom = new THREE.CylinderGeometry(0.06, 0.06, 2.5, 6);
-    laserGeom.rotateX(Math.PI / 2);
-    const laserMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-    const laserMesh = new THREE.Mesh(laserGeom, laserMat);
+        // Ring 1
+        let osc1 = this.ctx.createOscillator();
+        let gain1 = this.ctx.createGain();
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(880, now); // A5
+        gain1.gain.setValueAtTime(0.1, now);
+        gain1.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(this.ctx.destination);
+        osc1.start();
+        osc1.stop(now + 0.16);
 
-    // Position at gun barrel tip
-    const gunTip = new THREE.Vector3(0, 0, -1).applyMatrix4(blasterRifle.matrixWorld);
-    laserMesh.position.copy(gunTip);
-    laserMesh.rotation.copy(camera.rotation);
-
-    // Direct forward bullet speed vector
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-
-    laserMesh.userData = {
-        velocity: dir.multiplyScalar(2.2),
-        life: 55
-    };
-
-    scene.add(laserMesh);
-    lasers.push(laserMesh);
-
-    ammoClip--;
-    fuel = Math.max(0, fuel - 0.4);
-    updateUI();
-}
-
-function reloadBlaster() {
-    if (isReloading || ammoClip === ammoClipMax) return;
-    isReloading = true;
-    document.getElementById('reload-btn').innerText = 'RELOADING...';
-
-    // Spin/Rotational reload animations
-    let spinAngle = 0;
-    const reloadInterval = setInterval(() => {
-        if (!isPlaying) {
-            clearInterval(reloadInterval);
-            return;
-        }
-        spinAngle += 0.2;
-        blasterRifle.rotation.z = spinAngle;
-        blasterRifle.position.y = -0.9 - Math.sin(spinAngle) * 0.15;
-
-        if (spinAngle >= Math.PI * 2) {
-            clearInterval(reloadInterval);
-            blasterRifle.rotation.set(-0.05, -0.15, 0);
-            blasterRifle.position.set(1.1, -0.9, -1.8);
-            ammoClip = ammoClipMax;
-            isReloading = false;
-            document.getElementById('reload-btn').innerText = 'RELOAD (R)';
-            updateUI();
-        }
-    }, 45);
-}
-
-function fireEnemyLaser(drone) {
-    const laserGeom = new THREE.CylinderGeometry(0.1, 0.1, 1.8, 6);
-    laserGeom.rotateX(Math.PI / 2);
-    const laserMat = new THREE.MeshBasicMaterial({ color: 0xff1100 });
-    const laserMesh = new THREE.Mesh(laserGeom, laserMat);
-
-    laserMesh.position.copy(drone.position);
-
-    // Vector pointing directly to player ship
-    const dir = new THREE.Vector3().subVectors(ship.position, drone.position).normalize();
-    laserMesh.lookAt(ship.position);
-
-    laserMesh.userData = {
-        velocity: dir.multiplyScalar(1.1),
-        life: 80
-    };
-
-    scene.add(laserMesh);
-    enemyLasers.push(laserMesh);
-}
-
-function triggerExplosion(pos, colorHex, count = 12) {
-    const geom = new THREE.SphereGeometry(0.12, 4, 4);
-    const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.85 });
-
-    for (let i = 0; i < count; i++) {
-        const p = new THREE.Mesh(geom, mat);
-        p.position.copy(pos);
-
-        p.userData = {
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 0.45,
-                (Math.random() - 0.5) * 0.45,
-                (Math.random() - 0.5) * 0.45
-            ),
-            life: 25 + Math.random() * 20
-        };
-
-        scene.add(p);
-        particles.push(p);
-    }
-}
-
-function setupControls() {
-    const joyContainer = document.getElementById('joystick-container');
-    const joyKnob = document.getElementById('joystick-knob');
-
-    function handleStart(e) {
-        joystickActive = true;
-        const pageX = e.touches ? e.touches[0].clientX : e.clientX;
-        const pageY = e.touches ? e.touches[0].clientY : e.clientY;
-        const rect = joyContainer.getBoundingClientRect();
-        joystickStartPos.set(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        handleMove(e);
+        // Ring 2 (delayed slightly)
+        setTimeout(() => {
+            if (!this.ctx) return;
+            let osc2 = this.ctx.createOscillator();
+            let gain2 = this.ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(1318.51, this.ctx.currentTime); // E6
+            gain2.gain.setValueAtTime(0.15, this.ctx.currentTime);
+            gain2.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+            osc2.connect(gain2);
+            gain2.connect(this.ctx.destination);
+            osc2.start();
+            osc2.stop(this.ctx.currentTime + 0.26);
+        }, 60);
     }
 
-    function handleMove(e) {
-        if (!joystickActive) return;
-        const pageX = e.touches ? e.touches[0].clientX : e.clientX;
-        const pageY = e.touches ? e.touches[0].clientY : e.clientY;
+    playUpgrade() {
+        if (!state.audioEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const freqs = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5 major chord
 
-        const offset = new THREE.Vector2(pageX - joystickStartPos.x, pageY - joystickStartPos.y);
-        const distance = offset.length();
-        const maxDist = 50;
-
-        if (distance > maxDist) {
-            offset.normalize().multiplyScalar(maxDist);
-        }
-
-        joyKnob.style.transform = `translate(${offset.x}px, ${offset.y}px)`;
-        moveVector.set(offset.x / maxDist, -offset.y / maxDist);
-    }
-
-    function handleEnd() {
-        joystickActive = false;
-        joyKnob.style.transform = `translate(0px, 0px)`;
-        moveVector.set(0, 0);
-    }
-
-    joyContainer.addEventListener('mousedown', handleStart);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleEnd);
-
-    joyContainer.addEventListener('touchstart', handleStart);
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleEnd);
-
-    const laserBtn = document.getElementById('laser-btn');
-    laserBtn.addEventListener('mousedown', (e) => { e.preventDefault(); fireLaser(); });
-    laserBtn.addEventListener('touchstart', (e) => { e.preventDefault(); fireLaser(); });
-
-    // Keyboard inputs
-    window.addEventListener('keydown', (e) => {
-        if (!isPlaying) return;
-        if (e.code === 'KeyW' || e.code === 'ArrowUp') moveVector.y = 1;
-        if (e.code === 'KeyS' || e.code === 'ArrowDown') moveVector.y = -1;
-        if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveVector.x = -1;
-        if (e.code === 'KeyD' || e.code === 'ArrowRight') moveVector.x = 1;
-        if (e.code === 'Space') fireLaser();
-        if (e.code === 'KeyR') reloadBlaster();
-    });
-
-    window.addEventListener('keyup', (e) => {
-        if (!isPlaying) return;
-        if (['KeyW', 'ArrowUp', 'KeyS', 'ArrowDown'].includes(e.code)) moveVector.y = 0;
-        if (['KeyA', 'ArrowLeft', 'KeyD', 'ArrowRight'].includes(e.code)) moveVector.x = 0;
-    });
-
-    document.getElementById('reload-btn').addEventListener('click', reloadBlaster);
-
-    const shopBtn = document.getElementById('shop-btn');
-    const shopModal = document.getElementById('shop-modal');
-    const closeShop = document.getElementById('close-shop');
-
-    shopBtn.addEventListener('click', () => {
-        const dist = ship.position.distanceTo(spaceStation.position);
-        if (dist < 15) {
-            shopModal.style.display = 'block';
-            updateShopButtons();
-
-            if (Math.random() < 0.4) {
-                showInterstitialAd();
-            }
-        } else {
-            alert('Підлетить ближче до Військової Станції! (Вона позначена яскравим неоновим світлом)');
-        }
-    });
-
-    closeShop.addEventListener('click', () => {
-        shopModal.style.display = 'none';
-    });
-
-    document.getElementById('sell-all-btn').addEventListener('click', () => {
-        if (cargo > 0 || crystalCountVal > 0) {
-            const earnings = cargo * 15 + crystalCountVal * 40;
-            money += earnings;
-            cargo = 0;
-            crystalCountVal = 0;
-            triggerExplosion(spaceStation.position, 0x00ff00, 20);
-            updateUI();
-            updateShopButtons();
-        }
-    });
-
-    document.getElementById('sell-all-double-btn').addEventListener('click', () => {
-        if (cargo > 0 || crystalCountVal > 0) {
-            playRewardedAd(() => {
-                const earnings = (cargo * 15 + crystalCountVal * 40) * 2;
-                money += earnings;
-                cargo = 0;
-                crystalCountVal = 0;
-                triggerExplosion(spaceStation.position, 0xffff00, 30);
-                updateUI();
-                updateShopButtons();
-                alert(`Подвійний продаж проведено успішно! Отримано $${earnings} кредитів! 💰`);
-            });
-        }
-    });
-
-    document.getElementById('refuel-btn').addEventListener('click', () => {
-        if (money >= 10 && (fuel < 100 || playerShield < 100)) {
-            money -= 10;
-            fuel = 100;
-            playerShield = 100;
-            updateUI();
-            updateShopButtons();
-        }
-    });
-
-    document.getElementById('refuel-ad-btn').addEventListener('click', () => {
-        if (fuel < 100 || playerShield < 100) {
-            playRewardedAd(() => {
-                fuel = 100;
-                playerShield = 100;
-                updateUI();
-                updateShopButtons();
-                alert('Щити відновлено та корабель повністю заправлено безкоштовно! 🛡️🚀');
-            });
-        }
-    });
-
-    document.getElementById('upgrade-cargo-btn').addEventListener('click', () => {
-        if (money >= upgradeCargoCost) {
-            money -= upgradeCargoCost;
-            ammoClipMax += 10;
-            upgradeCargoCost = Math.ceil(upgradeCargoCost * 1.8);
-            document.getElementById('upgrade-cargo-btn').innerText = `Купити ($${upgradeCargoCost})`;
-            updateUI();
-            updateShopButtons();
-        }
-    });
-
-    document.getElementById('upgrade-laser-btn').addEventListener('click', () => {
-        if (money >= upgradeLaserCost) {
-            money -= upgradeLaserCost;
-            laserDamage += 1;
-            upgradeLaserCost = Math.ceil(upgradeLaserCost * 2);
-            document.getElementById('upgrade-laser-btn').innerText = `Купити ($${upgradeLaserCost})`;
-            updateUI();
-            updateShopButtons();
-        }
-    });
-
-    document.getElementById('upgrade-speed-btn').addEventListener('click', () => {
-        if (money >= upgradeSpeedCost) {
-            money -= upgradeSpeedCost;
-            shipSpeedMultiplier += 0.2;
-            upgradeSpeedCost = Math.ceil(upgradeSpeedCost * 1.5);
-            document.getElementById('upgrade-speed-btn').innerText = `Купити ($${upgradeSpeedCost})`;
-            updateUI();
-            updateShopButtons();
-        }
-    });
-
-    document.getElementById('start-btn').addEventListener('click', () => {
-        document.getElementById('intro-screen').style.display = 'none';
-        isPlaying = true;
-    });
-
-    document.getElementById('restart-btn').addEventListener('click', () => {
-        document.getElementById('gameover-screen').style.display = 'none';
-        resetGame();
-    });
-
-    document.getElementById('revive-ad-btn').addEventListener('click', () => {
-        playRewardedAd(() => {
-            document.getElementById('gameover-screen').style.display = 'none';
-            playerHP = 100;
-            playerShield = 100;
-            fuel = 100;
-            cargo = 0;
-            ship.position.set(0, 0, 10);
-            ship.rotation.set(0, 0, 0);
-            isPlaying = true;
-            updateUI();
-            alert('Ваш корабель відроджено! Продовжуємо бій! ⚔️');
+        freqs.forEach((f, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, now + i * 0.05);
+            gain.gain.setValueAtTime(0.1, now + i * 0.05);
+            gain.gain.linearRampToValueAtTime(0.01, now + i * 0.05 + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.26);
         });
+    }
+
+    playError() {
+        if (!state.audioEnabled) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, this.ctx.currentTime); // A2 low buzz
+
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.36);
+    }
+
+    playSuccess() {
+        if (!state.audioEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+
+        // Fun retro fanfare sound
+        const notes = [523.25, 587.33, 659.25, 783.99, 880, 1046.50]; // Pentatonic scale sweep
+        notes.forEach((f, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, now + i * 0.06);
+            gain.gain.setValueAtTime(0.12, now + i * 0.06);
+            gain.gain.linearRampToValueAtTime(0.01, now + i * 0.06 + 0.2);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.22);
+        });
+    }
+}
+
+const synth = new BrainrotSynth();
+
+// --- UPGRADES SHOP DATA ---
+let upgrades = [
+    {
+        id: 'bot_farm',
+        name: '🤖 ТікТок Бот-Ферма',
+        desc: 'Автоматично крутить перегляди мемів у тіктоці.',
+        cost: 100,
+        factor: 1.4,
+        incomeBoost: 2,
+        count: 0
+    },
+    {
+        id: 'sigma_course',
+        name: '🦁 Сігма-Курси Тадеуша',
+        desc: 'Курси гринду та різу підвищують заробіток за ручний клік.',
+        cost: 250,
+        factor: 1.5,
+        clickMultiplier: 3, // Each level adds +3₴ per click
+        count: 0
+    },
+    {
+        id: 'abobus_ai',
+        name: '👁️ ШШІ "Абобус-AI"',
+        desc: 'Штучний Інтелект пише божественні брейрот речення.',
+        cost: 650,
+        factor: 1.6,
+        incomeBoost: 12,
+        count: 0
+    },
+    {
+        id: 'fanum_protection',
+        name: '🍕 Захист від Налогу Фанума',
+        desc: 'Захищає холодильник та страхує пасивний дохід.',
+        cost: 1800,
+        factor: 1.7,
+        incomeBoost: 45,
+        count: 0
+    },
+    {
+        id: 'gpu_miner',
+        name: '⚡ Відеокарта RTX 5090 Ti',
+        desc: 'Майнить Sigma-коїни пасивно на фоні з високим ККД.',
+        cost: 5000,
+        factor: 1.85,
+        incomeBoost: 160,
+        count: 0
+    }
+];
+
+// --- BRAINROT TEMPLATES DEFINITIONS ---
+const templates = [
+    {
+        name: "Скібіді Туалет",
+        icon: "🚽",
+        desc: "Класика брейроту. Голова в унітазі.",
+        emoji: "🚽",
+        bgGradient: ["#2c3e50", "#0f0f1c"],
+        drawSpecial: (ctx, x, y) => {
+            // Semicircular toilet bowl
+            ctx.fillStyle = "#e6e6e6";
+            ctx.beginPath();
+            ctx.arc(x, y + 40, 50, 0, Math.PI, false);
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "#8c8c8c";
+            ctx.stroke();
+
+            // Toilet tank
+            ctx.fillRect(x - 55, y - 50, 40, 90);
+            ctx.strokeRect(x - 55, y - 50, 40, 90);
+
+            // Toilet lid / cover
+            ctx.fillStyle = "#cccccc";
+            ctx.fillRect(x - 15, y + 35, 30, 10);
+            ctx.strokeRect(x - 15, y + 35, 30, 10);
+
+            // Giant smiling head emoji coming out of the toilet
+            ctx.font = "80px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("👨", x, y - 10);
+        }
+    },
+    {
+        name: "Мюінг Кот",
+        icon: "🤫",
+        desc: "🤫🏼 Мюїнгуй разом з котиком.",
+        emoji: "🐱",
+        bgGradient: ["#8a2be2", "#0d021f"],
+        drawSpecial: (ctx, x, y) => {
+            // Draw background glow rays
+            ctx.strokeStyle = "rgba(191, 0, 255, 0.25)";
+            ctx.lineWidth = 2;
+            for(let i=0; i<12; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                const angle = (i * Math.PI) / 6;
+                ctx.lineTo(x + Math.cos(angle) * 200, y + Math.sin(angle) * 200);
+                ctx.stroke();
+            }
+
+            // Cat emoji
+            ctx.font = "95px Arial";
+            ctx.fillText("🐱", x - 10, y - 15);
+
+            // Finger over mouth "shh" emoji
+            ctx.font = "65px Arial";
+            ctx.fillText("🤫", x + 35, y + 30);
+        }
+    },
+    {
+        name: "Сігма-Гігачад",
+        icon: "🗿",
+        desc: "🗿 Кремезний Моаї з лазерними очима.",
+        emoji: "🗿",
+        bgGradient: ["#333333", "#050505"],
+        drawSpecial: (ctx, x, y) => {
+            // Glowing neon geometric grid background
+            ctx.strokeStyle = "rgba(0, 240, 255, 0.15)";
+            ctx.lineWidth = 1;
+            for(let i = -100; i <= 100; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(x + i, y - 120);
+                ctx.lineTo(x + i, y + 120);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(x - 120, y + i);
+                ctx.lineTo(x + 120, y + i);
+                ctx.stroke();
+            }
+
+            // Stone Moai
+            ctx.font = "110px Arial";
+            ctx.fillText("🗿", x, y - 10);
+
+            // Golden Crown
+            ctx.font = "45px Arial";
+            ctx.fillText("👑", x + 10, y - 75);
+
+            // Laser eye glow beams
+            ctx.strokeStyle = "rgba(255, 0, 102, 0.8)";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(x - 18, y - 22);
+            ctx.lineTo(x - 150, y - 30);
+            ctx.moveTo(x + 6, y - 22);
+            ctx.lineTo(x + 150, y - 30);
+            ctx.stroke();
+
+            // Flare points at eyes
+            ctx.fillStyle = "#ff0066";
+            ctx.beginPath();
+            ctx.arc(x - 18, y - 22, 6, 0, Math.PI*2);
+            ctx.arc(x + 6, y - 22, 6, 0, Math.PI*2);
+            ctx.fill();
+        }
+    },
+    {
+        name: "Хок Туа",
+        icon: "💦",
+        desc: "Сплюнь на це діло! Hawk Tuah!",
+        emoji: "👄",
+        bgGradient: ["#ff007f", "#30001a"],
+        drawSpecial: (ctx, x, y) => {
+            // Retro concentric circles
+            ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            for(let r = 160; r > 30; r -= 30) {
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            // Big open lips
+            ctx.font = "95px Arial";
+            ctx.fillText("👄", x - 5, y - 15);
+
+            // Spits/Drops of water flying
+            ctx.font = "55px Arial";
+            ctx.fillText("💦", x + 50, y - 35);
+            ctx.fillText("💦", x - 55, y + 25);
+        }
+    },
+    {
+        name: "Італійська Сова",
+        icon: "🦉",
+        desc: "Брейнрот-пташка співає Bella Ciao! 🇮🇹",
+        emoji: "🦉",
+        bgGradient: ["#1e3c72", "#111"],
+        drawSpecial: (ctx, x, y) => {
+            // Italian flag background stripes behind the character
+            ctx.fillStyle = "rgba(0, 146, 70, 0.4)"; // Green
+            ctx.fillRect(x - 100, y - 80, 60, 160);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.4)"; // White
+            ctx.fillRect(x - 40, y - 80, 80, 160);
+            ctx.fillStyle = "rgba(206, 43, 55, 0.4)"; // Red
+            ctx.fillRect(x + 40, y - 80, 60, 160);
+
+            // Owl Head
+            ctx.font = "90px Arial";
+            ctx.fillText("🦉", x, y - 15);
+
+            // Pizza slice
+            ctx.font = "40px Arial";
+            ctx.fillText("🍕", x + 35, y + 35);
+        }
+    },
+    {
+        name: "Італійський Кабан",
+        icon: "🐷",
+        desc: "Porco Dio! Мама мія!",
+        emoji: "🐷",
+        bgGradient: ["#00bf8f", "#001510"],
+        drawSpecial: (ctx, x, y) => {
+            // Gold sparkles in background
+            ctx.fillStyle = "rgba(255, 204, 0, 0.6)";
+            for(let i=0; i<8; i++) {
+                const px = x + Math.sin(i * 1.2) * 80;
+                const py = y + Math.cos(i * 0.9) * 80;
+                ctx.fillText("✨", px, py);
+            }
+
+            // Pig face emoji
+            ctx.font = "95px Arial";
+            ctx.fillText("🐷", x, y - 10);
+
+            // Crown
+            ctx.font = "45px Arial";
+            ctx.fillText("👑", x, y - 68);
+        }
+    },
+    {
+        name: "Грімас Шейк",
+        icon: "🥤",
+        desc: "Не пий фіолетовий коктейль від МакДональдс...",
+        emoji: "🥤",
+        bgGradient: ["#4a154b", "#140019"],
+        drawSpecial: (ctx, x, y) => {
+            // Slime purple pool under the shake
+            ctx.fillStyle = "#8a2be2";
+            ctx.beginPath();
+            ctx.ellipse(x, y + 60, 75, 20, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // Milkshake Cup
+            ctx.font = "90px Arial";
+            ctx.fillText("🥤", x, y - 20);
+
+            // Ghost face or purple monster emoji
+            ctx.font = "50px Arial";
+            ctx.fillText("👾", x - 40, y + 30);
+            ctx.fillText("😈", x + 45, y + 25);
+        }
+    },
+    {
+        name: "Налог Фанума",
+        icon: "🍕",
+        desc: "Хтось забирає шматок твоєї піци! 🥷",
+        emoji: "🍕",
+        bgGradient: ["#d35400", "#1e1005"],
+        drawSpecial: (ctx, x, y) => {
+            // Radial grid
+            ctx.strokeStyle = "rgba(241, 196, 15, 0.2)";
+            ctx.lineWidth = 1.5;
+            for(let r = 20; r < 140; r += 40) {
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI*2);
+                ctx.stroke();
+            }
+
+            // Big Pizza Slice
+            ctx.font = "100px Arial";
+            ctx.fillText("🍕", x - 15, y - 10);
+
+            // Bandit or Ninja stealing the pizza
+            ctx.font = "65px Arial";
+            ctx.fillText("🥷", x + 40, y + 25);
+        }
+    },
+    {
+        name: "Абобус",
+        icon: "🔴",
+        desc: "Червоний космонавт виглядає дуже підозріло.",
+        emoji: "🚀",
+        bgGradient: ["#c0392b", "#1a0505"],
+        drawSpecial: (ctx, x, y) => {
+            // Cyber HUD circles
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.3)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, 90, 0, Math.PI*2);
+            ctx.stroke();
+
+            // Crosshair lines
+            ctx.beginPath();
+            ctx.moveTo(x - 120, y); ctx.lineTo(x - 70, y);
+            ctx.moveTo(x + 70, y); ctx.lineTo(x + 120, y);
+            ctx.moveTo(x, y - 120); ctx.lineTo(x, y - 70);
+            ctx.moveTo(x, y + 70); ctx.lineTo(x, y + 120);
+            ctx.stroke();
+
+            // Alien red crewmate emoji (substitute with funny red mask)
+            ctx.font = "90px Arial";
+            ctx.fillText("👽", x, y - 10);
+
+            ctx.fillStyle = "rgba(0, 240, 255, 0.8)";
+            ctx.font = "bold 15px monospace";
+            ctx.fillText("SUSPECTED", x, y + 55);
+        }
+    }
+];
+
+// --- HILARIOUS UKRAINIAN CAPTION PRESETS ---
+const funnyPresets = [
+    { top: "КОЛИ ТИ ЗАЙШОВ В КЛАС", bottom: "ТА ПОЧАВ ПОТУЖНО МЮЇНГУВАТИ 🤫" },
+    { top: "СІГМА-САМЕЦЬ ПІСЛЯ ТОГО", bottom: "ЯК НЕ ОПЛАТИВ НАЛОГ ФАНУМА 🍕" },
+    { top: "БЕЗКОШТОВНИЙ КУРС ГРИНДУ", bottom: "ВІД СУПЕР СІГМИ ТАДЕУША 🦁" },
+    { top: "ХОК ТУА! СПЛЮНЬ СЛИНУ", bottom: "ТА КУПИ КРИПТО-ВІДЕОКАРТУ ⚡" },
+    { top: "СУДЬБА МОГО КЕНТЮРІКА", bottom: "ПІСЛЯ ФІОЛЕТОВОГО ГРІМАС ШЕЙКУ 🥤" },
+    { top: "ПОРКО ДІО КАБАНЧИК", bottom: "НАЙШОВ КУСОК ЗОЛОТОЇ ПІЦИ 🍕" },
+    { top: "СЕКРЕТНИЙ ХОЛОДИЛЬНИК", bottom: "ЯКИЙ ОБОРОНЯЄ СКУФ-ОДРЯД 🥷" },
+    { top: "ХОТІВ СТАТИ УСПІШНИМ", bottom: "АЛЕ СТАВ СКІБІДІ-БОСОМ В УНІТАЗІ 🚽" },
+    { top: "ЩОДЕННИЙ ГРИНД СЕТ СІГМИ:", bottom: "МЮЇНГ, ЧІНАЗЕС, КЛІК КРИПТИ 🗿" },
+    { top: "КОЛИ ІТАЛІЙСЬКА СОВА🦉", bottom: "ВЗЯЛА ДИПЛОМ ГОЛОВНОГО СІГМИ 🎓" },
+    { top: "АБОБУС ПІДГЛЯДАЄ ЗА ТОБОЮ", bottom: "ЯК ТИ ТРАТИШ КРЕДИТИ В КЛІКЕРІ 🪙" },
+    { top: "СКУФИ НАМАГАЮТЬСЯ", bottom: "ВІДІБРАТИ ПІЦУ У ФАНУМА 🍕" }
+];
+
+// --- TRIVIA QUESTIONS FOR CARD WITHDRAWAL ---
+const triviaQuestions = [
+    {
+        q: "Хто такий Справжній Сігма?",
+        a: [
+            "Той, хто мовчки мюїнгує та гриндить 🗿",
+            "Хто дивиться скібіді туалети весь день 🚽",
+            "Якийсь невідомий скуф з пивом 🍺"
+        ],
+        correct: 0
+    },
+    {
+        q: "Що означає 'Податок Фанума' (Fanum Tax)?",
+        a: [
+            "Податок на житло в ТікТоці 🏠",
+            "Коли твій кент без дозволу з'їдає твою їжу 🍕",
+            "Реальний податок, затверджений Радою 🏛️"
+        ],
+        correct: 1
+    },
+    {
+        q: "Яку пісню виконує легендарна італійська брейрот сова?",
+        a: [
+            "Skibidi Toilet Theme Song 🚽",
+            "Italian national anthem 🇮🇹",
+            "Bella Ciao! 🦉"
+        ],
+        correct: 2
+    },
+    {
+        q: "Що треба зробити при зустрічі з кентюріком?",
+        a: [
+            "Показати потужний Mewing (🤫🏼)",
+            "Втекти та заплатити налог фанума 🥷",
+            "Сказати 'Чіназес!' та обійняти 🤝"
+        ],
+        correct: 2
+    }
+];
+
+// --- AD ROTATION LIST ---
+const bannerAds = [
+    { title: "КУРСИ СІГМА-ГРИНДУ!", desc: "Стань мільярдером за 3 дні під керівництвом Тадеуша! 📈" },
+    { title: "КРЕДИТ 'СЛІД СКУФА'", desc: "Гроші на чіпси та пиво під 0% від Абобус Банку! 🍺" },
+    { title: "МОНОБАНК 🐱", desc: "Відкрий сігма-банку та накопичуй на нову RTX 5090!" },
+    { title: "МАК-СУПЕР-ШЕЙК", desc: "Ультрафіолетовий напій. Спробуй, якщо не боїшся стати совою! 🥤" },
+    { title: "ВГАДАЙ ПОВАРА ЗА ЗВУКОМ", desc: "Нове брейрот ТікТок шоу! Звуки різання цибулі 🧅" }
+];
+
+// --- INITIALIZE THE APPLICATION ---
+let coinScene, coinCamera, coinRenderer, coinMesh;
+let particles3D = [];
+
+function init() {
+    setupDomListeners();
+    renderTemplateCards();
+    drawMeme();
+    setupThreeJSCoin();
+    renderUpgradeStore();
+    startTycoonLoops();
+    rotateBannerAds();
+}
+
+// --- RENDER CARD SLIDER ---
+function renderTemplateCards() {
+    const slider = document.getElementById('template-slider');
+    slider.innerHTML = '';
+
+    templates.forEach((t, i) => {
+        const card = document.createElement('div');
+        card.className = `template-card ${i === state.activeTemplateIndex ? 'active' : ''}`;
+        card.innerHTML = `
+            <span class="template-icon">${t.icon}</span>
+            <span class="template-name">${t.name}</span>
+        `;
+
+        card.addEventListener('click', () => {
+            state.activeTemplateIndex = i;
+            // Update active cards
+            document.querySelectorAll('.template-card').forEach((c, idx) => {
+                c.classList.toggle('active', idx === i);
+            });
+            drawMeme();
+            synth.playCoin();
+        });
+
+        slider.appendChild(card);
     });
 }
 
-function setupAds() {
-    document.getElementById('close-banner-btn').addEventListener('click', () => {
-        document.getElementById('ad-banner').style.display = 'none';
-    });
-    document.getElementById('close-interstitial-btn').addEventListener('click', () => {
-        document.getElementById('ad-interstitial').style.display = 'none';
-        isPlaying = true;
+// --- DRAW MEME ON CANVAS ---
+function drawMeme() {
+    const canvas = document.getElementById('meme-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const template = templates[state.activeTemplateIndex];
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Fill background gradient
+    const grad = ctx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w/2);
+    grad.addColorStop(0, template.bgGradient[0]);
+    grad.addColorStop(1, template.bgGradient[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw funny grid or stars
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+    ctx.lineWidth = 1;
+    for(let i=0; i<w; i += 40) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke();
+    }
+
+    // Draw central special illustration
+    template.drawSpecial(ctx, w / 2, h / 2);
+
+    // Add meme watermarks
+    ctx.fillStyle = "rgba(0, 240, 255, 0.3)";
+    ctx.font = "bold 12px Courier New";
+    ctx.textAlign = "right";
+    ctx.fillText("БРЕЙНРОТ AI © СИГМА ТАЙКУН", w - 15, h - 15);
+
+    // Get input texts
+    const topVal = document.getElementById('caption-top').value.toUpperCase();
+    const bottomVal = document.getElementById('caption-bottom').value.toUpperCase();
+
+    // Text styling settings
+    ctx.fillStyle = state.fontColor;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 7;
+    ctx.lineJoin = 'miter';
+    ctx.miterLimit = 2;
+    ctx.font = `900 ${state.fontSize}px Impact, Arial Black, sans-serif`;
+    ctx.textAlign = 'center';
+
+    // Top text wrap drawing
+    if (topVal) {
+        ctx.textBaseline = 'top';
+        drawWrappedText(ctx, topVal, w / 2, 25, w - 40, state.fontSize * 1.1);
+    }
+
+    // Bottom text wrap drawing
+    if (bottomVal) {
+        ctx.textBaseline = 'bottom';
+        drawWrappedText(ctx, bottomVal, w / 2, h - 25, w - 40, state.fontSize * 1.1, true);
+    }
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, bottomOriented = false) {
+    const words = text.split(" ");
+    let lines = [];
+    let currentLine = words[0] || "";
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const width = ctx.measureText(currentLine + " " + word).width;
+        if (width < maxWidth) {
+            currentLine += " " + word;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    lines.push(currentLine);
+
+    if (bottomOriented) {
+        // Draw lines from bottom to top
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const lineY = y - (lines.length - 1 - i) * lineHeight;
+            ctx.strokeText(lines[i], x, lineY);
+            ctx.fillText(lines[i], x, lineY);
+        }
+    } else {
+        // Draw lines from top to bottom
+        for (let i = 0; i < lines.length; i++) {
+            const lineY = y + i * lineHeight;
+            ctx.strokeText(lines[i], x, lineY);
+            ctx.fillText(lines[i], x, lineY);
+        }
+    }
+}
+
+// --- SETUP THREE.JS SPINNING SIGMA COIN ---
+function setupThreeJSCoin() {
+    const canvas = document.getElementById('coin-3d-canvas');
+    if (!canvas) return;
+
+    // Simple orthographic view setup
+    coinScene = new THREE.Scene();
+
+    // Transparent camera setup
+    coinCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    coinCamera.position.set(0, 0, 8);
+
+    coinRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+    coinRenderer.setSize(100, 100);
+    coinRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Beautiful lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    coinScene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffcc00, 2.5);
+    dirLight.position.set(5, 5, 5);
+    coinScene.add(dirLight);
+
+    // Thick Golden Coin Mesh
+    const coinGeom = new THREE.CylinderGeometry(2, 2, 0.4, 32);
+    coinGeom.rotateX(Math.PI / 2); // face front
+
+    const coinMat = new THREE.MeshStandardMaterial({
+        color: 0xffaa00,
+        metalness: 0.95,
+        roughness: 0.1,
+        emissive: 0x332200
     });
 
-    const bannerAds = [
-        { title: "Black Ops 6! 💥", desc: "Грай у найнапруженішу гру року прямо зараз!" },
-        { title: "Новий Тариф Лайфселл 📱", desc: "Безлімітний інтернет за 120 грн/місяць!" },
-        { title: "Доставка Rozetka 📦", desc: "Купуй будь-що з безкоштовною доставкою!" },
-        { title: "Glovo Доставка 🍕", desc: "Знижка -20% на перше замовлення їжі!" }
-    ];
-    let currentAdIdx = 0;
+    coinMesh = new THREE.Group();
+    const coreCoin = new THREE.Mesh(coinGeom, coinMat);
+    coinMesh.add(coreCoin);
+
+    // Extrude a 3D letter "Σ" (Sigma) on the coin's front face
+    // Let's draw it using basic Box Geometries inside coinMesh
+    const sigmaColor = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.8,
+        roughness: 0.2,
+        emissive: 0x111111
+    });
+
+    const topBar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.22, 0.2), sigmaColor);
+    topBar.position.set(0, 0.7, 0.21);
+    coinMesh.add(topBar);
+
+    const botBar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.22, 0.2), sigmaColor);
+    botBar.position.set(0, -0.7, 0.21);
+    coinMesh.add(botBar);
+
+    const diagTop = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.2), sigmaColor);
+    diagTop.position.set(0.15, 0.35, 0.21);
+    diagTop.rotation.z = -Math.PI / 4;
+    coinMesh.add(diagTop);
+
+    const diagBot = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.2), sigmaColor);
+    diagBot.position.set(0.15, -0.35, 0.21);
+    diagBot.rotation.z = Math.PI / 4;
+    coinMesh.add(diagBot);
+
+    coinScene.add(coinMesh);
+
+    // Anim loop
+    function render() {
+        requestAnimationFrame(render);
+
+        // Spin the coin
+        if (coinMesh) {
+            coinMesh.rotation.y += 0.035;
+            // Wobble/tilt slightly
+            coinMesh.rotation.x = 0.3 + Math.sin(Date.now() * 0.002) * 0.12;
+
+            // Return size scale slowly
+            coinMesh.scale.x = THREE.MathUtils.lerp(coinMesh.scale.x, 1.0, 0.15);
+            coinMesh.scale.y = THREE.MathUtils.lerp(coinMesh.scale.y, 1.0, 0.15);
+            coinMesh.scale.z = THREE.MathUtils.lerp(coinMesh.scale.z, 1.0, 0.15);
+        }
+
+        coinRenderer.render(coinScene, coinCamera);
+    }
+
+    render();
+}
+
+// --- CLICK TO MINE COINS ---
+function mineCoin(e) {
+    // Punch scale effect
+    if (coinMesh) {
+        coinMesh.scale.set(1.4, 1.4, 1.4);
+    }
+
+    // Get click coordinates for floating text
+    let clickX = 100;
+    let clickY = 100;
+    if (e) {
+        const rect = e.target.getBoundingClientRect();
+        clickX = e.clientX - rect.left;
+        clickY = e.clientY - rect.top;
+    }
+
+    // Mine rate calculation based on upgrade
+    const courseUpgrade = upgrades.find(u => u.id === 'sigma_course');
+    const clickEarnings = 1 + (courseUpgrade ? courseUpgrade.count * courseUpgrade.clickMultiplier : 0);
+
+    state.cash += clickEarnings;
+    state.totalViews += Math.ceil(clickEarnings * 5 + Math.random() * 5);
+    state.subscribers += Math.ceil(clickEarnings * 0.5 + Math.random() * 1.5);
+
+    updateUI();
+    synth.playCoin();
+
+    // Trigger visual float particle HTML element
+    createFloatParticle(`+₴${clickEarnings}`, e ? e.clientX : window.innerWidth / 2, e ? e.clientY : window.innerHeight / 2);
+}
+
+function createFloatParticle(text, x, y) {
+    const p = document.createElement('div');
+    p.innerText = text;
+    p.style.position = 'fixed';
+    p.style.left = `${x - 15}px`;
+    p.style.top = `${y - 15}px`;
+    p.style.color = '#00ff66';
+    p.style.fontWeight = '900';
+    p.style.fontSize = '18px';
+    p.style.fontFamily = 'monospace';
+    p.style.pointerEvents = 'none';
+    p.style.zIndex = '9999';
+    p.style.textShadow = '0 0 8px #000';
+    p.style.transition = 'all 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+
+    document.body.appendChild(p);
+
+    setTimeout(() => {
+        p.style.transform = `translateY(-60px) scale(1.3)`;
+        p.style.opacity = '0';
+    }, 15);
+
+    setTimeout(() => {
+        p.remove();
+    }, 650);
+}
+
+// --- RENDER SHOP PRODUCTS ---
+function renderUpgradeStore() {
+    const store = document.getElementById('upgrades-store');
+    if (!store) return;
+    store.innerHTML = '';
+
+    upgrades.forEach((u, i) => {
+        const cost = Math.ceil(u.cost * Math.pow(u.factor, u.count));
+        const item = document.createElement('div');
+        item.className = 'store-item';
+
+        // Dynamic stat representation
+        let statText = '';
+        if (u.incomeBoost) {
+            statText = `+₴${u.incomeBoost}/сек пасивно`;
+        } else if (u.clickMultiplier) {
+            statText = `+₴${u.clickMultiplier} до кліку`;
+        }
+
+        item.innerHTML = `
+            <div class="item-info">
+                <div class="item-title">${u.name} [Рівень ${u.count}]</div>
+                <div class="item-desc">${u.desc}</div>
+                <div class="item-stats">${statText}</div>
+            </div>
+            <div class="item-action-wrapper">
+                <span class="item-cost">₴${cost}</span>
+                <button class="btn-upgrade" id="btn-up-${u.id}" ${state.cash < cost ? 'disabled' : ''}>КУПИТИ</button>
+            </div>
+        `;
+
+        // Buy trigger
+        const buyBtn = item.querySelector(`#btn-up-${u.id}`);
+        buyBtn.addEventListener('click', () => {
+            if (state.cash >= cost) {
+                state.cash -= cost;
+                u.count++;
+
+                // Recalculate passive income
+                recalculateIncome();
+                updateUI();
+                renderUpgradeStore();
+                synth.playUpgrade();
+
+                // 30% chance of random humorous comment on purchase
+                if (Math.random() < 0.3) {
+                    addHumorousComment("Монобанк інвестор", `Купив покращення "${u.name}"! Тепер я офіційний інвестор брейроту! 😎💵`);
+                }
+            }
+        });
+
+        store.appendChild(item);
+    });
+}
+
+function recalculateIncome() {
+    let passive = 0;
+    upgrades.forEach(u => {
+        if (u.incomeBoost) {
+            passive += u.count * u.incomeBoost;
+        }
+    });
+    state.cashPerSecond = passive;
+}
+
+// --- UPDATE STATS AND BUTTONS ---
+function updateUI() {
+    // Top Cash Balance
+    document.getElementById('cash-balance').innerText = state.cash.toLocaleString();
+    document.getElementById('withdrawal-cash-available').innerText = state.cash.toLocaleString();
+
+    // HUD Dashboard metrics
+    document.getElementById('cash-per-sec-ui').innerText = `+₴${state.cashPerSecond}/с`;
+    document.getElementById('memes-count-ui').innerText = state.memesPublishedCount;
+    document.getElementById('views-count-ui').innerText = formatBigNumber(state.totalViews);
+    document.getElementById('subs-count-ui').innerText = formatBigNumber(state.subscribers);
+
+    // Disable/Enable store buy buttons dynamically
+    upgrades.forEach(u => {
+        const cost = Math.ceil(u.cost * Math.pow(u.factor, u.count));
+        const btn = document.getElementById(`btn-up-${u.id}`);
+        if (btn) {
+            btn.disabled = (state.cash < cost);
+        }
+    });
+
+    // Disable/Enable withdraw trigger button based on balance
+    const withdrawBtn = document.getElementById('btn-open-withdraw');
+    if (state.cash >= 100) {
+        withdrawBtn.style.opacity = '1';
+        withdrawBtn.disabled = false;
+    } else {
+        withdrawBtn.style.opacity = '0.5';
+    }
+}
+
+function formatBigNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+// --- TYCOON LOOPS ---
+function startTycoonLoops() {
+    // 1. Passive income payout every second
     setInterval(() => {
-        currentAdIdx = (currentAdIdx + 1) % bannerAds.length;
-        document.getElementById('banner-title').innerText = bannerAds[currentAdIdx].title;
-        document.getElementById('banner-desc').innerText = bannerAds[currentAdIdx].desc;
-    }, 10000);
+        if (state.cashPerSecond > 0) {
+            state.cash += state.cashPerSecond;
+            // Also generate views passively
+            state.totalViews += Math.ceil(state.cashPerSecond * 12 + Math.random() * 10);
+            state.subscribers += Math.ceil(state.cashPerSecond * 1.5 + Math.random() * 2);
+            updateUI();
+
+            // Light coin ring sound occasionally if earning money passively
+            if (Math.random() < 0.15) {
+                synth.playCash();
+            }
+        }
+    }, 1000);
+
+    // 2. Passive background comments rolling
+    setInterval(() => {
+        if (state.memesPublishedCount > 0 && Math.random() < 0.45) {
+            triggerProceduralComment();
+        }
+    }, 4500);
 }
 
-function showInterstitialAd() {
-    isPlaying = false;
-    document.getElementById('ad-interstitial').style.display = 'flex';
+function triggerProceduralComment() {
+    const users = ["@vlad_sigma", "@boss_skibidi", "@king_mewing", "@fanum_taxer", "@kenturik_40", "@hawk_spit", "@bella_owl", "@abobus_red", "@gigachad_ua", "@tadeush_monetka", "@chinazes_bro", "@scuf_scufich", "@mamma_mia_cat"];
+    const quotes = [
+        "Це реально сігма! Поважаю! 🗿",
+        "Я змюїнгував від цього мему прямо на уроці 🤫",
+        "Доп доп єс єс, найкращий мем тижня!",
+        "Заберіть у нього телефон, він занадто потужно різить 😂",
+        "Це ж белла чао сова! Легенда TikTok!",
+        "Податкова служба Фанума схвалює цей контент 🍕",
+        "Абобус дивиться на тебе з повагою... 👽",
+        "Хок туа! Сплюнь і забудь, це шедевр! 💦",
+        "Скільки коштує твій курс по гринду?",
+        "Вже вивів 50,000₴ на монобанк, дякую!",
+        "Чи є реф посилання на клікер? Хочу більше!",
+        "Це імба, я підписався!",
+        "Кабан каже мама мія! 🐷👑",
+        "Та за що налог фанума 😭 я тільки почав їсти піцу!",
+        "Чисто я в 3 години ночі дивлюся ці шедеври",
+        "Чіназес! Сюди гроші!"
+    ];
+
+    const randomUser = users[Math.floor(Math.random() * users.length)];
+    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+    addHumorousComment(randomUser, randomQuote);
 }
 
-function playRewardedAd(callback) {
-    isPlaying = false;
-    document.getElementById('shop-modal').style.display = 'none';
-    const adRewarded = document.getElementById('ad-rewarded');
-    const timerText = document.getElementById('ad-rewarded-timer');
-    adRewarded.style.display = 'flex';
+function addHumorousComment(user, text) {
+    const feed = document.getElementById('comments-feed-box');
+    if (!feed) return;
+
+    const item = document.createElement('div');
+    item.className = 'comment-item';
+    item.innerHTML = `<span class="comment-user">${user}:</span> ${text}`;
+
+    feed.appendChild(item);
+
+    // Auto scroll bottom
+    feed.scrollTop = feed.scrollHeight;
+
+    // Keep feed clean (limit to 12 items)
+    if (feed.children.length > 12) {
+        feed.children[0].remove();
+    }
+}
+
+// --- BANNER ADS ROTATION & ACTIONS ---
+function rotateBannerAds() {
+    let adIndex = 0;
+
+    setInterval(() => {
+        adIndex = (adIndex + 1) % bannerAds.length;
+        document.getElementById('banner-ad-title').innerText = bannerAds[adIndex].title;
+        document.getElementById('banner-ad-desc').innerText = bannerAds[adIndex].desc;
+    }, 8000);
+
+    // Banner ad interaction
+    document.getElementById('banner-ad-action-btn').addEventListener('click', () => {
+        synth.playCash();
+        const bonus = 25 + Math.floor(Math.random() * 50);
+        state.cash += bonus;
+        updateUI();
+        alert(`🤑 Дякуємо за перехід по спонсорському оголошенню! Ви підтримали розробників брейроту та отримали Sigma-бонус: +₴${bonus}!`);
+    });
+
+    document.getElementById('banner-ad-close-btn').addEventListener('click', () => {
+        document.getElementById('top-ad-banner').style.display = 'none';
+        // Re-appear after 20 seconds
+        setTimeout(() => {
+            document.getElementById('top-ad-banner').style.display = 'flex';
+        }, 20000);
+    });
+}
+
+// --- TRIGGER INTERSTITIAL ADS ---
+function showInterstitialAd(onCloseCallback) {
+    const modal = document.getElementById('interstitial-ad');
+    const closeBtn = document.getElementById('interstitial-ad-close-btn');
+    const clickBtn = document.getElementById('interstitial-ad-click-btn');
+
+    modal.style.display = 'flex';
+    synth.playError();
+
+    // Random ad texts
+    const adTitles = ["Курс 'Завтра ти Сігма'", "Казино 'Скібіді 777'", "Пиво 'Скуфське добірне'"];
+    const adDescs = [
+        "Навчися правильно мюїнгувати з нашими відеолекціями всього за 499₴!",
+        "Крути слоти з головою в унітазі! Отримай +100 фріспінів при реєстрації!",
+        "Освіжаючий напій для справжніх кентюріків. Захист від налогу фанума в подарунок!"
+    ];
+    const randIdx = Math.floor(Math.random() * adTitles.length);
+    document.getElementById('interstitial-title').innerText = adTitles[randIdx];
+    document.getElementById('interstitial-desc').innerText = adDescs[randIdx];
+
+    function handleClose() {
+        modal.style.display = 'none';
+        closeBtn.removeEventListener('click', handleClose);
+        clickBtn.removeEventListener('click', handleAction);
+
+        // Give small compensation
+        state.cash += 20;
+        updateUI();
+        createFloatParticle("+₴20 за рекламу", window.innerWidth / 2, window.innerHeight / 2);
+
+        if (onCloseCallback) onCloseCallback();
+    }
+
+    function handleAction() {
+        alert("Redirecting to Sponsor...");
+        handleClose();
+    }
+
+    closeBtn.addEventListener('click', handleClose);
+    clickBtn.addEventListener('click', handleAction);
+}
+
+// --- TRIGGER REWARDED AD VIDEO ---
+function showRewardedAd(onRewardedCallback) {
+    const modal = document.getElementById('rewarded-ad');
+    const timerText = document.getElementById('rewarded-ad-timer');
+    modal.style.display = 'flex';
 
     let countdown = 5;
     timerText.innerText = `Зачекайте: ${countdown}с`;
+
+    const adTitles = ["SKIBIDI WAR 3D ⚔️", "RAID: SHADOW LEGENDS 🚀", "МНОЖНИК БАГАТСТВА ТАДЕУША 💵"];
+    const adDescs = [
+        "Обороняй базу камераменів від нашестя туалетів нового покоління! Завантаж зараз безкоштовно!",
+        "Грай за кращих героїв з унікальним скіном Сігма-Мавпи! 100+ рівнів тактичного гринду!",
+        "Хочеш подвоїти свій пасивний прибуток? Подивись це відео до кінця та отримай подвійний кеш!"
+    ];
+    const randIdx = Math.floor(Math.random() * adTitles.length);
+    document.getElementById('rewarded-ad-title').innerText = adTitles[randIdx];
+    document.getElementById('rewarded-ad-desc').innerText = adDescs[randIdx];
 
     const interval = setInterval(() => {
         countdown--;
         if (countdown > 0) {
             timerText.innerText = `Зачекайте: ${countdown}с`;
+            // play small beep
+            synth.playCoin();
         } else {
             clearInterval(interval);
-            adRewarded.style.display = 'none';
-            isPlaying = true;
-            callback();
+            modal.style.display = 'none';
+            synth.playSuccess();
+            onRewardedCallback();
         }
     }, 1000);
 }
 
-function updateShopButtons() {
-    const cargoFull = (cargo === 0 && crystalCountVal === 0);
-    document.getElementById('sell-all-btn').disabled = cargoFull;
-    document.getElementById('sell-all-double-btn').disabled = cargoFull;
-    document.getElementById('refuel-btn').disabled = (money < 10 || (fuel === 100 && playerShield === 100));
-    document.getElementById('refuel-ad-btn').disabled = (fuel === 100 && playerShield === 100);
-    document.getElementById('upgrade-cargo-btn').disabled = (money < upgradeCargoCost);
-    document.getElementById('upgrade-laser-btn').disabled = (money < upgradeLaserCost);
-    document.getElementById('upgrade-speed-btn').disabled = (money < upgradeSpeedCost);
-}
+// --- PUBLISH MEME CAMPAIGN ---
+function publishMeme() {
+    if (state.isMemePublishing) return;
+    state.isMemePublishing = true;
 
-function updateUI() {
-    document.getElementById('crystal-count').innerText = crystalCountVal;
-    document.getElementById('money-count').innerText = money;
-    document.getElementById('fuel-count').innerText = Math.round(fuel);
-    document.getElementById('cargo-count').innerText = cargo;
-    document.getElementById('cargo-max').innerText = cargoMax;
+    const btn = document.getElementById('btn-publish-meme');
+    btn.disabled = true;
+    btn.innerText = "ОБРОБКА ТА ПУБЛІКАЦІЯ У ТІКТОК... 📡";
 
-    // Tactical HUD bars
-    document.getElementById('hp-bar-fill').style.width = `${Math.max(0, playerHP)}%`;
-    document.getElementById('shield-bar-fill').style.width = `${Math.max(0, playerShield)}%`;
-    document.getElementById('ammo-clip').innerText = ammoClip;
-    document.getElementById('ammo-max').innerText = ammoClipMax;
-}
+    synth.playCoin();
 
-function resetGame() {
-    money = 0;
-    cargo = 0;
-    cargoMax = 20;
-    fuel = 100;
-    laserDamage = 1;
-    shipSpeedMultiplier = 1;
-    crystalCountVal = 0;
-    playerHP = 100;
-    playerShield = 100;
-    ammoClip = ammoClipMax;
-    isReloading = false;
+    // Delayed publication
+    setTimeout(() => {
+        state.memesPublishedCount++;
 
-    upgradeCargoCost = 50;
-    upgradeLaserCost = 100;
-    upgradeSpeedCost = 75;
+        // Calculate viral views based on upgrades (especially abobus AI)
+        const aiUpgrade = upgrades.find(u => u.id === 'abobus_ai');
+        const viewsMultiplier = 1 + (aiUpgrade ? aiUpgrade.count * 1.5 : 0);
 
-    document.getElementById('upgrade-cargo-btn').innerText = 'Купити';
-    document.getElementById('upgrade-laser-btn').innerText = 'Купити';
-    document.getElementById('upgrade-speed-btn').innerText = 'Купити';
+        const gainedViews = Math.floor((100 + Math.random() * 500) * viewsMultiplier);
+        const gainedSubs = Math.floor((gainedViews * 0.15) + Math.random() * 10);
+        const earnedCash = Math.floor((gainedViews * 0.25) + Math.random() * 5);
 
-    ship.position.set(0, 0, 10);
-    ship.rotation.set(0, 0, 0);
+        state.totalViews += gainedViews;
+        state.subscribers += gainedSubs;
+        state.cash += earnedCash;
 
-    asteroids.forEach(ast => resetAsteroidPosition(ast));
-    crystals.forEach(cry => resetCrystalPosition(cry));
-    enemyDrones.forEach(drone => resetEnemyDronePosition(drone));
-
-    isPlaying = true;
-    updateUI();
-
-    if (Math.random() < 0.5) {
-        showInterstitialAd();
-    }
-}
-
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-// Game Animation Loop
-function animate() {
-    requestAnimationFrame(animate);
-
-    if (isPlaying) {
-        updateGameLogic();
-    }
-
-    if (spaceStation) {
-        spaceStation.rotation.y += 0.002;
-    }
-
-    renderer.render(scene, camera);
-}
-
-function updateGameLogic() {
-    frameCount++;
-
-    // Weapon Recoil Recovery & Sway breathing physics
-    if (cameraShakeAmount > 0.01) {
-        cameraShakeAmount *= 0.9;
-        // Apply micro shake to camera
-        camera.position.x += (Math.random() - 0.5) * cameraShakeAmount;
-        camera.position.y += (Math.random() - 0.5) * cameraShakeAmount;
-    }
-
-    // Smooth weapon recoil return
-    blasterRifle.position.z = THREE.MathUtils.lerp(blasterRifle.position.z, -1.8, 0.15);
-    blasterRifle.position.y = THREE.MathUtils.lerp(blasterRifle.position.y, -0.9, 0.15);
-
-    // Idle breathing sway
-    weaponSwayTime += 0.03;
-    if (!isReloading) {
-        blasterRifle.position.x = 1.1 + Math.sin(weaponSwayTime) * 0.02;
-        blasterRifle.position.y += Math.cos(weaponSwayTime * 2) * 0.008;
-    }
-
-    // 1. Ship movement & controls
-    if (moveVector.length() > 0.05) {
-        const speed = 0.28 * shipSpeedMultiplier;
-
-        ship.rotation.y -= moveVector.x * 0.055;
-
-        const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-        ship.position.addScaledVector(direction, -moveVector.y * speed);
-
-        fuel = Math.max(0, fuel - 0.04);
         updateUI();
+
+        btn.disabled = false;
+        btn.innerText = "🚀 ОПУБЛІКУВАТИ МЕМ ТА ЗАРОБИТИ 💸";
+        state.isMemePublishing = false;
+
+        // Success sound
+        synth.playCash();
+
+        // Feed comments update
+        triggerProceduralComment();
+        addHumorousComment("@tiktok_trends_bot", `Ваш мем потрапив у тренди! 📈 Отримано +${gainedViews} переглядів та +₴${earnedCash}!`);
+
+        // Trigger float notification
+        createFloatParticle(`+₴${earnedCash}`, window.innerWidth / 2, window.innerHeight / 2 - 100);
+
+        // 35% chance of showing an interstitial ad after publication
+        if (Math.random() < 0.35) {
+            showInterstitialAd();
+        }
+
+    }, 1200);
+}
+
+// --- WITHDRAWAL MODULE AND TRIVIA VERIFICATION ---
+function openWithdrawalModal() {
+    const modal = document.getElementById('withdrawal-modal');
+    modal.style.display = 'flex';
+    document.getElementById('withdrawal-main-form').style.display = 'block';
+    document.getElementById('withdrawal-trivia').style.display = 'none';
+
+    // Default placeholder card
+    document.getElementById('withdraw-card-input').value = '4441 1144 2255 ' + Math.floor(1000 + Math.random() * 9000);
+    // Set balance inside input
+    document.getElementById('withdraw-amount-input').value = Math.min(state.cash, 1000);
+}
+
+function handleWithdrawalRequest() {
+    const card = document.getElementById('withdraw-card-input').value.trim();
+    const amount = parseFloat(document.getElementById('withdraw-amount-input').value);
+
+    if (!card) {
+        alert("Введіть правильний номер картки або гаманця!");
+        synth.playError();
+        return;
     }
 
-    if (fuel <= 0) {
-        gameOver("У вас закінчилось паливо!");
+    if (isNaN(amount) || amount <= 0) {
+        alert("Введіть правильну суму виведення!");
+        synth.playError();
+        return;
     }
 
-    // Camera follow player (Rigid 1st Person Shooter Mode)
-    camera.position.copy(ship.position);
-    camera.rotation.copy(ship.rotation);
+    if (amount > state.cash) {
+        alert("Недостатньо коштів на балансі!");
+        synth.playError();
+        return;
+    }
 
-    // 2. Rotate obstacles
-    asteroids.forEach(ast => {
-        ast.rotation.x += ast.userData.rotSpeed.x;
-        ast.rotation.y += ast.userData.rotSpeed.y;
-        ast.rotation.z += ast.userData.rotSpeed.z;
-    });
+    // Save info
+    state.withdrawalAmount = amount;
+    state.withdrawCardNumber = card;
 
-    crystals.forEach(cry => {
-        cry.rotation.y += cry.userData.rotSpeed;
-    });
+    // Switch to Trivia mode
+    document.getElementById('withdrawal-main-form').style.display = 'none';
+    const triviaBox = document.getElementById('withdrawal-trivia');
+    triviaBox.style.display = 'block';
 
-    // 3. AI Combat Sentry Drones tracking & firing
-    enemyDrones.forEach(drone => {
-        // Fly towards player
-        const dist = drone.position.distanceTo(ship.position);
-        if (dist > 15 && dist < 70) {
-            const dir = new THREE.Vector3().subVectors(ship.position, drone.position).normalize();
-            drone.position.addScaledVector(dir, 0.1);
-        }
+    // Choose random trivia question
+    state.currentTriviaQuestionIndex = Math.floor(Math.random() * triviaQuestions.length);
+    loadTriviaQuestion();
+}
 
-        // Face player
-        drone.lookAt(ship.position);
+function loadTriviaQuestion() {
+    const question = triviaQuestions[state.currentTriviaQuestionIndex];
+    document.getElementById('trivia-question-text').innerText = question.q;
 
-        // Fire laser cooldowns
-        drone.userData.fireCooldown--;
-        if (drone.userData.fireCooldown <= 0 && dist < 50 && isPlaying) {
-            fireEnemyLaser(drone);
-            drone.userData.fireCooldown = 90 + Math.random() * 50;
-        }
-    });
+    const wrapper = document.getElementById('trivia-options-wrapper');
+    wrapper.innerHTML = '';
 
-    // 4. Update Player Lasers
-    for (let i = lasers.length - 1; i >= 0; i--) {
-        const laser = lasers[i];
-        laser.position.add(laser.userData.velocity);
-        laser.userData.life--;
+    question.a.forEach((optionText, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'trivia-option';
+        btn.innerText = `${index + 1}) ${optionText}`;
 
-        let removed = false;
+        btn.addEventListener('click', () => {
+            if (index === question.correct) {
+                // Correct! Show Rewarded Ad as simulated bank processing
+                synth.playSuccess();
+                alert("✅ Відповідь правильна! Ви підтвердили статус Сігми. Запускаємо захищений шлюз обробки транзакції...");
 
-        // Collide with asteroids
-        for (let j = asteroids.length - 1; j >= 0; j--) {
-            const ast = asteroids[j];
-            const dist = laser.position.distanceTo(ast.position);
-
-            if (dist < ast.userData.radius) {
-                ast.userData.health -= laserDamage;
-                triggerExplosion(laser.position, 0xffaa00, 5);
-                triggerHitmarker();
-
-                scene.remove(laser);
-                lasers.splice(i, 1);
-                removed = true;
-
-                if (ast.userData.health <= 0) {
-                    triggerExplosion(ast.position, 0x8d7e73, 15);
-                    if (cargo < cargoMax) {
-                        cargo = Math.min(cargoMax, cargo + Math.ceil(ast.userData.radius));
-                        updateUI();
-                    }
-                    resetAsteroidPosition(ast);
-                    ast.userData.health = ast.userData.maxHealth;
-                }
-                break;
-            }
-        }
-
-        if (removed) continue;
-
-        // Collide with Enemy Drones
-        for (let j = enemyDrones.length - 1; j >= 0; j--) {
-            const drone = enemyDrones[j];
-            const dist = laser.position.distanceTo(drone.position);
-
-            if (dist < 1.8) {
-                drone.userData.health -= laserDamage;
-                triggerExplosion(laser.position, 0xff3300, 8);
-                triggerHitmarker();
-
-                scene.remove(laser);
-                lasers.splice(i, 1);
-                removed = true;
-
-                if (drone.userData.health <= 0) {
-                    triggerExplosion(drone.position, 0xff1100, 25);
-                    money += 35; // Award credits for destroying hostiles
-                    resetEnemyDronePosition(drone);
-                    drone.userData.health = drone.userData.maxHealth;
+                showRewardedAd(() => {
+                    // Payout Successful! Show license certificate!
+                    state.cash -= state.withdrawalAmount;
                     updateUI();
-                }
-                break;
-            }
-        }
 
-        if (removed) continue;
-
-        if (laser.userData.life <= 0) {
-            scene.remove(laser);
-            lasers.splice(i, 1);
-        }
-    }
-
-    // 5. Update Enemy Lasers (Hits player)
-    for (let i = enemyLasers.length - 1; i >= 0; i--) {
-        const elaser = enemyLasers[i];
-        elaser.position.add(elaser.userData.velocity);
-        elaser.userData.life--;
-
-        const dist = elaser.position.distanceTo(ship.position);
-        if (dist < 1.6) {
-            // Player hit!
-            scene.remove(elaser);
-            enemyLasers.splice(i, 1);
-            triggerExplosion(ship.position, 0xff0000, 10);
-            triggerDamageFlash();
-
-            // Damage Shields first, then Health
-            if (playerShield > 0) {
-                playerShield = Math.max(0, playerShield - 15);
+                    document.getElementById('withdrawal-modal').style.display = 'none';
+                    showSigmaCertificate();
+                });
             } else {
-                playerHP = Math.max(0, playerHP - 10);
+                // Wrong answer
+                synth.playError();
+                alert("❌ Неправильно! Справжній Сігма знає брейрот матчастину! Транзакцію заблоковано. Спробуйте ще раз.");
+                // Reset back to main form
+                document.getElementById('withdrawal-main-form').style.display = 'block';
+                document.getElementById('withdrawal-trivia').style.display = 'none';
             }
-            updateUI();
+        });
 
-            if (playerHP <= 0) {
-                gameOver("Вас знищили ворожі дрони прибульців!");
-            }
-            continue;
-        }
-
-        if (elaser.userData.life <= 0) {
-            scene.remove(elaser);
-            enemyLasers.splice(i, 1);
-        }
-    }
-
-    // 6. Update particle system
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.position.add(p.userData.velocity);
-        p.userData.life--;
-        p.material.opacity = p.userData.life / 50;
-
-        if (p.userData.life <= 0) {
-            scene.remove(p);
-            particles.splice(i, 1);
-        }
-    }
-
-    // 7. Collisions: Ship with Crystals
-    for (let i = crystals.length - 1; i >= 0; i--) {
-        const cry = crystals[i];
-        const dist = ship.position.distanceTo(cry.position);
-
-        if (dist < 1.8) {
-            if (cargo < cargoMax) {
-                crystalCountVal++;
-                cargo = Math.min(cargoMax, cargo + 1);
-                triggerExplosion(cry.position, 0xffbb00, 12);
-                resetCrystalPosition(cry);
-                updateUI();
-            }
-        }
-    }
-
-    // 8. Collisions: Ship with Asteroids (Crashing)
-    for (let i = 0; i < asteroids.length; i++) {
-        const ast = asteroids[i];
-        const dist = ship.position.distanceTo(ast.position);
-
-        if (dist < (ast.userData.radius + 1.2)) {
-            triggerExplosion(ship.position, 0xff3300, 30);
-            triggerDamageFlash();
-            gameOver("Ви розбилися об астероїд!");
-            break;
-        }
-    }
+        wrapper.appendChild(btn);
+    });
 }
 
-function gameOver(message) {
-    isPlaying = false;
-    document.getElementById('gameover-stats').innerHTML = `${message}<br><br>Зібрано кристалів: ${crystalCountVal}<br>Баланс: $${money} кредитів`;
-    document.getElementById('gameover-screen').style.display = 'flex';
+// --- RENDER SIGMA LICENSE CERTIFICATE ---
+function showSigmaCertificate() {
+    const modal = document.getElementById('cert-modal');
+    modal.style.display = 'flex';
+
+    const canvas = document.getElementById('cert-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // White paper certificate background with security grid
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    // Decorative double border (Gold/Green)
+    ctx.strokeStyle = '#bf00ff';
+    ctx.lineWidth = 12;
+    ctx.strokeRect(15, 15, w - 30, h - 30);
+
+    ctx.strokeStyle = '#00ff66';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(26, 26, w - 52, h - 52);
+
+    // Security background lines
+    ctx.strokeStyle = '#f4e8ff';
+    ctx.lineWidth = 1;
+    for(let i=0; i<w; i += 25) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0); ctx.lineTo(w - i, h);
+        ctx.stroke();
+    }
+
+    // Title Header
+    ctx.fillStyle = '#111';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 26px "Times New Roman", Georgia, serif';
+    ctx.fillText("ГІЛЬДІЯ СУПЕР СІГМА-ГРИНДЕРІВ УКРАЇНИ", w / 2, 70);
+
+    // Subtitle
+    ctx.fillStyle = '#bf00ff';
+    ctx.font = 'bold 18px "Courier New", monospace';
+    ctx.fillText("★ ОФІЦІЙНА ЛІЦЕНЗІЯ ГОЛОВНОГО СІГМИ ★", w / 2, 105);
+
+    // Body text
+    ctx.fillStyle = '#333';
+    ctx.font = 'italic 16px Georgia, serif';
+    ctx.fillText("Цей сертифікат засвідчує, що власник картки рахунку", w / 2, 160);
+
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 20px Courier New, monospace';
+    ctx.fillText(`ID Card: [${state.withdrawCardNumber}]`, w / 2, 195);
+
+    ctx.fillStyle = '#333';
+    ctx.font = 'italic 16px Georgia, serif';
+    ctx.fillText("успішно пройшов брейрот-верифікацію, згриндив мільйони переглядів", w / 2, 235);
+    ctx.fillText("та здійснив успішний вивід у розмірі", w / 2, 260);
+
+    ctx.fillStyle = '#00cc44';
+    ctx.font = '900 32px Arial, sans-serif';
+    ctx.fillText(`₴${state.withdrawalAmount.toLocaleString()} ГРИВЕНЬ`, w / 2, 310);
+
+    ctx.fillStyle = '#333';
+    ctx.font = 'italic 15px Georgia, serif';
+    ctx.fillText("Йому надається статус Почесного Скібідіста та Майстра Мюїнгу 1-го ступеня.", w / 2, 355);
+
+    // Gold Seal Medal
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath();
+    ctx.arc(w / 2 - 180, 420, 35, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#cc8800';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Ribbon tails
+    ctx.fillStyle = '#ff3300';
+    ctx.beginPath();
+    ctx.moveTo(w/2 - 200, 440);
+    ctx.lineTo(w/2 - 210, 475);
+    ctx.lineTo(w/2 - 190, 465);
+    ctx.lineTo(w/2 - 180, 440);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.moveTo(w/2 - 165, 440);
+    ctx.lineTo(w/2 - 150, 475);
+    ctx.lineTo(w/2 - 170, 465);
+    ctx.lineTo(w/2 - 180, 440);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText("SIGMA", w / 2 - 180, 418);
+    ctx.fillText("APPROVED", w / 2 - 180, 430);
+
+    // Signatures
+    ctx.fillStyle = '#111';
+    ctx.font = '13px Courier New';
+    ctx.fillText("Голова Мюінг-Гільдії: Кот 🤫", w / 2 + 150, 410);
+    ctx.strokeStyle = '#0066cc';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); // Fake handwritten signature line
+    ctx.moveTo(w / 2 + 70, 415);
+    ctx.bezierCurveTo(w / 2 + 120, 395, w / 2 + 180, 425, w / 2 + 230, 405);
+    ctx.stroke();
+
+    ctx.fillText("Спонсор гринда: Тадеуш Карабас 🦁", w / 2 + 150, 445);
+    ctx.beginPath(); // Fake handwritten signature 2
+    ctx.moveTo(w / 2 + 65, 450);
+    ctx.bezierCurveTo(w / 2 + 110, 435, w / 2 + 170, 460, w / 2 + 225, 438);
+    ctx.stroke();
 }
 
-// Start game setup
+function downloadSigmaCertificate() {
+    const canvas = document.getElementById('cert-canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `Sigma_Certificate_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    synth.playSuccess();
+}
+
+function downloadMeme() {
+    const canvas = document.getElementById('meme-canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `Brainrot_Meme_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    synth.playCoin();
+}
+
+// --- RANDOM CAPTION GENERATION ---
+function randomizeMemeText() {
+    const rand = funnyPresets[Math.floor(Math.random() * funnyPresets.length)];
+    document.getElementById('caption-top').value = rand.top;
+    document.getElementById('caption-bottom').value = rand.bottom;
+    drawMeme();
+    synth.playCoin();
+}
+
+// --- SETUP EVENT LISTENERS ---
+function setupDomListeners() {
+    // Canvas update on text input
+    document.getElementById('caption-top').addEventListener('input', drawMeme);
+    document.getElementById('caption-bottom').addEventListener('input', drawMeme);
+
+    // Font sliders
+    const fSize = document.getElementById('caption-font-size');
+    fSize.addEventListener('input', (e) => {
+        state.fontSize = parseInt(e.target.value);
+        document.getElementById('font-size-val').innerText = state.fontSize;
+        drawMeme();
+    });
+
+    const fColor = document.getElementById('caption-color');
+    fColor.addEventListener('input', (e) => {
+        state.fontColor = e.target.value;
+        drawMeme();
+    });
+
+    // Randomizer and download
+    document.getElementById('btn-randomize-text').addEventListener('click', randomizeMemeText);
+    document.getElementById('btn-download-meme').addEventListener('click', downloadMeme);
+
+    // Publish meme trigger
+    document.getElementById('btn-publish-meme').addEventListener('click', publishMeme);
+
+    // 3D Coin click miner
+    document.getElementById('coin-3d-canvas').addEventListener('mousedown', mineCoin);
+    document.getElementById('btn-mine-coin').addEventListener('click', (e) => mineCoin(null));
+
+    // Audio controller toggle
+    const audioBtn = document.getElementById('sound-toggle');
+    audioBtn.addEventListener('click', () => {
+        state.audioEnabled = !state.audioEnabled;
+        audioBtn.innerText = state.audioEnabled ? "🔊" : "🔇";
+        if (state.audioEnabled) {
+            synth.init();
+            synth.playCoin();
+        }
+    });
+
+    // Modals controls
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+        document.getElementById('intro-modal').style.display = 'none';
+        synth.init();
+        synth.playSuccess();
+    });
+
+    // Withdrawal triggers
+    document.getElementById('btn-open-withdraw').addEventListener('click', openWithdrawalModal);
+    document.getElementById('withdrawal-close-btn').addEventListener('click', () => {
+        document.getElementById('withdrawal-modal').style.display = 'none';
+    });
+
+    document.getElementById('btn-request-withdrawal-action').addEventListener('click', handleWithdrawalRequest);
+
+    // Certificate downloads & closure
+    document.getElementById('cert-close-btn').addEventListener('click', () => {
+        document.getElementById('cert-modal').style.display = 'none';
+    });
+    document.getElementById('cert-download-btn').addEventListener('click', downloadSigmaCertificate);
+}
+
+// --- BOOTSTRAP WINDOW ONLOAD ---
 window.onload = () => {
     init();
     updateUI();

@@ -1,456 +1,663 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Space Duty 3D: Black Ops</title>
+    <title>БРЕЙНРОТ МЕМ ГЕНЕРАТОР: СИГМА-БІЗНЕС 🚀</title>
     <style>
+        :root {
+            --color-bg: #05050a;
+            --color-panel: rgba(13, 13, 25, 0.9);
+            --color-neon-green: #00ff66;
+            --color-neon-purple: #bf00ff;
+            --color-neon-blue: #00f0ff;
+            --color-text-white: #ffffff;
+            --color-border: rgba(191, 0, 255, 0.35);
+        }
+
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--color-bg);
+            background-image: radial-gradient(circle at 50% 50%, #150a25 0%, #05050a 100%);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: var(--color-text-white);
             user-select: none;
             -webkit-user-select: none;
-        }
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
-        /* Call of Duty / Military Sci-Fi HUD style */
-        #ui {
-            position: absolute;
-            top: 70px;
-            left: 15px;
-            z-index: 10;
-            color: #fff;
-            pointer-events: none;
-        }
-        .hud-panel {
-            background: rgba(0, 5, 10, 0.7);
-            border-left: 4px solid #ff3300;
-            padding: 8px 15px;
-            border-radius: 0 8px 8px 0;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 14px;
-            letter-spacing: 1.5px;
-            margin-bottom: 8px;
-            color: #00f0ff;
-            text-shadow: 0 0 5px rgba(0,240,255,0.5);
-            border: 1px solid rgba(0,240,255,0.2);
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 40px;
             box-sizing: border-box;
-            z-index: 10;
-        }
-        .joystick-container {
-            width: 120px;
-            height: 120px;
-            background: rgba(0, 240, 255, 0.05);
-            border-radius: 50%;
-            border: 2px solid rgba(0, 240, 255, 0.3);
-            position: relative;
-            touch-action: none;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.1);
-        }
-        .joystick-knob {
-            width: 50px;
-            height: 50px;
-            background: radial-gradient(circle, #00f0ff, #005577);
-            border-radius: 50%;
-            position: absolute;
-            top: 35px;
-            left: 35px;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
-        }
-        .btn-action {
-            width: 85px;
-            height: 85px;
-            background: radial-gradient(circle, #ff1100, #aa0000);
-            border-radius: 50%;
-            border: 3px solid #ff3300;
-            color: white;
-            font-weight: 900;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 25px rgba(255, 50, 0, 0.7);
-            touch-action: none;
-            letter-spacing: 1px;
-            text-shadow: 0 0 5px black;
-        }
-        .btn-action:active {
-            transform: scale(0.9);
-            background: radial-gradient(circle, #aa0000, #ff1100);
         }
 
-        #shop-btn {
-            position: absolute;
-            top: 70px;
-            right: 15px;
-            z-index: 10;
-            background: linear-gradient(135deg, #005f00, #00bd00);
-            border: 2px solid #00ff00;
-            color: white;
-            padding: 10px 18px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            pointer-events: auto;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 0 15px rgba(0,255,0,0.3);
-        }
-
-        /* Central shooter crosshairs */
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-            z-index: 15;
-            pointer-events: none;
-        }
-        .cross-line {
-            position: absolute;
-            background: #00f0ff;
-            opacity: 0.8;
-            box-shadow: 0 0 5px #00f0ff;
-        }
-        .cross-h {
-            width: 14px;
-            height: 2px;
-            top: 19px;
-        }
-        .cross-h.left { left: 0; }
-        .cross-h.right { right: 0; }
-        .cross-v {
-            width: 2px;
-            height: 14px;
-            left: 19px;
-        }
-        .cross-v.top { top: 0; }
-        .cross-v.bottom { bottom: 0; }
-        .cross-dot {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: #ff3300;
-            border-radius: 50%;
-            top: 18px;
-            left: 18px;
-            box-shadow: 0 0 5px #ff3300;
-        }
-
-        /* Hitmarker (Call of Duty 'X' on hit) */
-        #hitmarker {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(45deg);
-            width: 24px;
-            height: 24px;
-            z-index: 16;
-            pointer-events: none;
-            display: none;
-        }
-        .hit-line {
-            position: absolute;
-            background: #ff1100;
-            box-shadow: 0 0 4px #ff1100;
-        }
-        .hit-line-1 { width: 100%; height: 2px; top: 11px; left: 0; }
-        .hit-line-2 { height: 100%; width: 2px; left: 11px; top: 0; }
-
-        /* Tactical Shooter Player HP and Ammo HUD */
-        #tactical-hud-left {
-            position: absolute;
-            bottom: 20px;
-            left: 180px;
-            z-index: 10;
-            color: white;
-            pointer-events: none;
-            font-family: monospace;
-        }
-        .hud-bar-container {
-            width: 180px;
-            height: 12px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid #00f0ff;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 4px;
-            box-shadow: 0 0 10px rgba(0,240,255,0.2);
-        }
-        .hud-bar-fill {
-            height: 100%;
-            width: 100%;
-            background: linear-gradient(90deg, #005577, #00f0ff);
-            transition: width 0.1s ease;
-        }
-        .hud-bar-fill.hp {
-            background: linear-gradient(90deg, #aa0000, #ff3300);
-        }
-
-        #tactical-hud-right {
-            position: absolute;
-            bottom: 20px;
-            right: 180px;
-            z-index: 10;
-            color: white;
-            pointer-events: none;
-            text-align: right;
-            font-family: monospace;
-        }
-        .ammo-text {
-            font-size: 32px;
-            font-weight: bold;
-            color: #00f0ff;
-            text-shadow: 0 0 10px rgba(0,240,255,0.6);
-            margin-bottom: 2px;
-        }
-        .ammo-sub {
-            font-size: 12px;
-            color: #888;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        /* Damage flash border */
-        #damage-indicator {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            border: 0px solid rgba(255, 0, 0, 0);
-            box-sizing: border-box;
-            z-index: 14;
-            pointer-events: none;
-            transition: border 0.1s ease, background 0.1s ease;
-        }
-
-        /* GDevelop style Modals & Ads */
-        #shop-modal {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 85%;
-            max-width: 480px;
-            background: rgba(5, 10, 20, 0.95);
-            border: 2px solid #ff3300;
-            border-radius: 8px;
-            z-index: 20;
-            color: white;
-            padding: 20px;
-            display: none;
-            box-shadow: 0 0 30px rgba(255, 50, 0, 0.4);
-        }
-        #shop-modal h2 {
-            margin-top: 0;
-            color: #ff3300;
-            text-align: center;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-        .shop-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #222;
-        }
-        .shop-item button {
-            background: #ff3300;
-            color: white;
-            border: none;
-            padding: 6px 14px;
-            font-weight: bold;
-            border-radius: 3px;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        .shop-item button:disabled {
-            background: #444;
-            color: #888;
-            cursor: not-allowed;
-        }
-        #close-shop {
-            background: #444;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            float: right;
-            margin-top: 15px;
-            cursor: pointer;
-        }
-
-        #intro-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: radial-gradient(circle, #2a0000, #0a0000, #000);
-            z-index: 30;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-        }
-        #intro-screen h1 {
-            font-size: 52px;
-            margin-bottom: 5px;
-            background: linear-gradient(45deg, #ff3300, #ffcc00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 40px rgba(255, 50, 0, 0.4);
-            font-weight: 900;
-            letter-spacing: 3px;
-        }
-        #intro-screen p {
-            font-size: 16px;
-            color: #ccc;
-            margin-bottom: 30px;
-            max-width: 600px;
-            padding: 0 20px;
-            line-height: 1.6;
-        }
-        #start-btn {
-            background: linear-gradient(135deg, #ff3300, #ff8800);
-            color: white;
-            border: none;
-            padding: 18px 50px;
-            font-size: 22px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            box-shadow: 0 0 25px rgba(255, 50, 0, 0.5);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        #gameover-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 25;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
-        }
-        #gameover-screen h1 {
-            font-size: 56px;
-            color: #ff1100;
-            margin-bottom: 10px;
-            letter-spacing: 3px;
-            text-shadow: 0 0 20px rgba(255,0,0,0.5);
-        }
-        #restart-btn {
-            background: #ff1100;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* === GOOGLE ADMOB SIMULATION === */
-        #ad-banner {
+        /* Top banner ad container */
+        #top-ad-banner {
             position: absolute;
             top: 0;
             left: 50%;
             transform: translateX(-50%);
-            width: 468px;
+            width: 100%;
+            max-width: 600px;
             height: 60px;
-            background: linear-gradient(90deg, #111, #222, #111);
-            border: 2px solid #333;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            background: linear-gradient(90deg, #120a1c, #2a053c, #120a1c);
+            border: 2px solid var(--color-neon-purple);
+            border-top: none;
+            box-shadow: 0 4px 15px rgba(191, 0, 255, 0.4);
             z-index: 100;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 15px;
-            color: white;
             font-size: 12px;
-            border-bottom-left-radius: 8px;
-            border-bottom-right-radius: 8px;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
             box-sizing: border-box;
         }
-        .ad-tag {
+
+        .ad-badge {
             background: #ffcc00;
-            color: black;
-            font-weight: bold;
+            color: #000;
+            font-weight: 900;
             padding: 2px 6px;
-            border-radius: 3px;
+            border-radius: 4px;
             font-size: 10px;
             text-transform: uppercase;
+            animation: pulse-ad 1.5s infinite alternate;
         }
-        .ad-content {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+
+        @keyframes pulse-ad {
+            from { transform: scale(0.95); opacity: 0.8; }
+            to { transform: scale(1.05); opacity: 1; }
         }
-        .ad-title {
+
+        .ad-title-text {
             font-weight: bold;
-            color: #ff3300;
+            color: var(--color-neon-green);
+            text-shadow: 0 0 5px rgba(0, 255, 102, 0.5);
+            margin-right: 5px;
         }
-        .ad-btn-action {
-            background: #ff3300;
+
+        .ad-desc-text {
+            color: #ccc;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+        }
+
+        .ad-btn-click {
+            background: linear-gradient(135deg, var(--color-neon-green), #00b344);
             border: none;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 4px;
+            color: black;
+            padding: 5px 12px;
+            border-radius: 6px;
             font-weight: bold;
+            font-size: 11px;
             cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
+            text-transform: uppercase;
+            transition: transform 0.1s ease;
         }
-        .ad-close {
+
+        .ad-btn-click:active {
+            transform: scale(0.92);
+        }
+
+        .ad-close-cross {
             color: #888;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            padding-left: 8px;
+            transition: color 0.2s;
+        }
+
+        .ad-close-cross:hover {
+            color: #ff3300;
+        }
+
+        /* Main Game Layout Container */
+        #game-container {
+            position: absolute;
+            top: 70px;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 15px;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 850px) {
+            #game-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                overflow-y: auto;
+                bottom: 0;
+            }
+        }
+
+        /* Panel Common Styling */
+        .neon-panel {
+            background: var(--color-panel);
+            border: 2px solid var(--color-neon-purple);
+            border-radius: 16px;
+            box-shadow: 0 0 20px rgba(191, 0, 255, 0.15), inset 0 0 10px rgba(191, 0, 255, 0.05);
+            padding: 15px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-image: linear-gradient(135deg, var(--color-neon-purple), var(--color-neon-blue)) 1;
+        }
+
+        /* LEFT COLUMN: MEME MAKER */
+        .meme-maker-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .section-title {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--color-neon-blue);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .section-title span {
+            color: var(--color-neon-green);
+        }
+
+        /* Meme Canvas and Preview */
+        .meme-canvas-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 380px;
+            margin: 0 auto;
+            border: 3px solid var(--color-neon-blue);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            background: #000;
+        }
+
+        #meme-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Template Picker */
+        .template-picker-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 5px 0 10px 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-neon-purple) #111;
+        }
+
+        .template-picker-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        .template-picker-container::-webkit-scrollbar-thumb {
+            background: var(--color-neon-purple);
+            border-radius: 3px;
+        }
+
+        .template-card {
+            flex: 0 0 85px;
+            height: 85px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: #10101f;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4px;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        .template-card.active {
+            border-color: var(--color-neon-green);
+            background: rgba(0, 255, 102, 0.08);
+            box-shadow: 0 0 12px rgba(0, 255, 102, 0.4);
+        }
+
+        .template-icon {
+            font-size: 24px;
+            margin-bottom: 2px;
+        }
+
+        .template-name {
+            font-size: 9px;
+            font-weight: bold;
+            color: #ddd;
+            text-transform: uppercase;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        /* Controls Panel */
+        .meme-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-row label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #88a;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .input-row input[type="text"] {
+            background: #0d0d1a;
+            border: 1px solid var(--color-neon-purple);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row input[type="text"]:focus {
+            border-color: var(--color-neon-blue);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .flex-row > * {
+            flex: 1;
+        }
+
+        .btn-green-pulse {
+            background: linear-gradient(135deg, var(--color-neon-green), #00c74c);
+            color: black;
+            border: none;
+            padding: 12px 18px;
+            font-weight: 900;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.45);
+            text-shadow: 0 1px 1px rgba(255,255,255,0.2);
+            animation: pulse-button 2s infinite;
+        }
+
+        @keyframes pulse-button {
+            0% { box-shadow: 0 0 12px rgba(0, 255, 102, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(0, 255, 102, 0.85); }
+            100% { box-shadow: 0 0 12px rgba(0, 255, 102, 0.4); }
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* RIGHT COLUMN: TYCOON & MONETIZATION */
+        .tycoon-section {
+            display: grid;
+            grid-template-rows: auto auto 1fr auto;
+            gap: 12px;
+            height: 100%;
+        }
+
+        /* Statistics Dashboard */
+        .stats-dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(191, 0, 255, 0.25);
+        }
+
+        .stat-card {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stat-title {
+            font-size: 9px;
+            color: #88a;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .stat-value {
+            font-size: 13px;
+            font-weight: 900;
+            font-family: monospace;
+            color: var(--color-neon-blue);
+        }
+
+        .stat-value.highlight-green {
+            color: var(--color-neon-green);
+            text-shadow: 0 0 5px rgba(0, 255, 102, 0.3);
+        }
+
+        .stat-value.highlight-purple {
+            color: var(--color-neon-purple);
+            text-shadow: 0 0 5px rgba(191, 0, 255, 0.3);
+        }
+
+        /* 3D Mining Section and Tap Button */
+        .mining-container {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 12px;
+            background: linear-gradient(135deg, rgba(13,13,25,0.9), rgba(40,10,60,0.3));
+            border: 1px solid rgba(191, 0, 255, 0.3);
+            border-radius: 12px;
+            padding: 10px;
+            align-items: center;
+            position: relative;
+        }
+
+        #coin-3d-canvas {
+            width: 100px;
+            height: 100px;
+            background: transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .mining-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .mining-title {
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: var(--color-neon-green);
+        }
+
+        .mining-desc {
+            font-size: 11px;
+            color: #ccc;
+            line-height: 1.3;
+        }
+
+        .btn-mine-clicker {
+            background: linear-gradient(135deg, var(--color-neon-blue), #0099cc);
+            color: black;
+            border: none;
+            padding: 8px 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 4px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            transition: transform 0.05s ease;
+        }
+
+        .btn-mine-clicker:active {
+            transform: scale(0.95);
+        }
+
+        /* Upgrades Store list */
+        .store-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            max-height: 250px;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-neon-purple) #111;
+        }
+
+        @media (max-width: 850px) {
+            .store-container {
+                max-height: 180px;
+            }
+        }
+
+        .store-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .store-container::-webkit-scrollbar-thumb {
+            background: var(--color-neon-purple);
+            border-radius: 2px;
+        }
+
+        .store-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(20, 20, 35, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 8px 12px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .store-item:hover {
+            border-color: rgba(191, 0, 255, 0.4);
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-width: 60%;
+        }
+
+        .item-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--color-neon-blue);
+        }
+
+        .item-desc {
+            font-size: 10px;
+            color: #aaa;
+            line-height: 1.2;
+        }
+
+        .item-stats {
+            font-size: 10px;
+            color: var(--color-neon-green);
+            font-weight: bold;
+            margin-top: 1px;
+        }
+
+        .item-action-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .item-cost {
+            font-size: 11px;
+            font-weight: bold;
+            color: #ffcc00;
+            font-family: monospace;
+        }
+
+        .btn-upgrade {
+            background: var(--color-neon-purple);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(191, 0, 255, 0.3);
+            transition: all 0.1s ease;
+        }
+
+        .btn-upgrade:disabled {
+            background: #333 !important;
+            color: #888 !important;
+            cursor: not-allowed;
+            box-shadow: none !important;
+        }
+
+        .btn-upgrade:not(:disabled):active {
+            transform: scale(0.95);
+        }
+
+        /* Comments box / social feed simulation */
+        .comments-section {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            height: 90px;
+            box-sizing: border-box;
+        }
+
+        .comments-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--color-neon-purple);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 2px;
+        }
+
+        .comments-feed {
+            font-family: monospace;
+            font-size: 11px;
+            color: #8fef8f;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .comment-item {
+            animation: slide-comment 0.25s ease-out;
+            line-height: 1.3;
+        }
+
+        @keyframes slide-comment {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .comment-user {
+            color: var(--color-neon-blue);
             font-weight: bold;
         }
 
-        #ad-interstitial {
+        /* Bottom Controls / Withdraw section */
+        .bottom-action-bar {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-withdraw {
+            background: linear-gradient(135deg, #ffcc00, #ffaa00);
+            color: black;
+            border: none;
+            padding: 10px 15px;
+            font-weight: 900;
+            font-size: 13px;
+            text-transform: uppercase;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+            flex: 1;
+        }
+
+        /* Sound Toggle and Floating music buttons */
+        #sound-toggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            border: 1.5px solid var(--color-neon-purple);
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* MODALS (Shop, Ad Interstitial, Ad Rewarded, Cash-out, Intro) */
+        .fullscreen-modal {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(5, 5, 10, 0.95);
             z-index: 200;
             display: none;
             flex-direction: column;
@@ -458,228 +665,503 @@
             align-items: center;
             color: white;
         }
-        #ad-interstitial-content {
-            width: 80%;
-            max-width: 400px;
-            background: #0f0505;
-            border: 3px solid #ff3300;
-            border-radius: 8px;
-            padding: 30px;
+
+        .modal-card {
+            width: 85%;
+            max-width: 450px;
+            background: #0d0d1c;
+            border: 3px solid var(--color-neon-purple);
+            border-radius: 16px;
+            padding: 25px;
+            box-sizing: border-box;
             text-align: center;
             position: relative;
-            box-shadow: 0 0 30px rgba(255, 50, 0, 0.4);
+            box-shadow: 0 0 35px rgba(191, 0, 255, 0.5);
+            animation: scale-modal 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .ad-interstitial-close {
+
+        @keyframes scale-modal {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-close-btn {
             position: absolute;
             top: 15px;
             right: 15px;
             background: rgba(255, 255, 255, 0.1);
             border: none;
             color: white;
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             font-weight: bold;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
         }
 
-        #ad-rewarded {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            z-index: 300;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
+        .modal-close-btn:hover {
+            background: rgba(255, 0, 0, 0.4);
         }
-        #ad-rewarded-video-simulation {
+
+        /* Ad Interstitial specific styling */
+        #interstitial-ad {
+            z-index: 500;
+        }
+
+        /* Rewarded Ad styling */
+        #rewarded-ad {
+            z-index: 600;
+            background: #000;
+        }
+
+        .rewarded-video-simulation {
             width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: radial-gradient(circle, #3a0000, #150000, #000);
+            background: radial-gradient(circle, #25053c, #050510, #000);
             position: relative;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        #ad-rewarded-timer {
+
+        .rewarded-timer {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            border: 2px solid #ff3300;
-            color: #ff3300;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 18px;
-            font-weight: bold;
+            top: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid var(--color-neon-purple);
+            color: var(--color-neon-green);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: 900;
+            font-family: monospace;
+            box-shadow: 0 0 15px rgba(191, 0, 255, 0.5);
         }
-        .video-ad-badge {
+
+        .video-ad-tag {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 30px;
+            left: 30px;
         }
-        .video-promo-content {
+
+        .rewarded-video-content {
             text-align: center;
             max-width: 500px;
-            padding: 20px;
-            animation: pulse-glow 2s infinite alternate;
+            animation: video-content-shake 4s infinite ease-in-out;
         }
-        @keyframes pulse-glow {
-            from { transform: scale(0.98); filter: drop-shadow(0 0 10px rgba(255, 50, 0, 0.3)); }
-            to { transform: scale(1.02); filter: drop-shadow(0 0 25px rgba(255, 50, 0, 0.6)); }
+
+        @keyframes video-content-shake {
+            0%, 100% { transform: scale(0.98) rotate(-0.5deg); }
+            50% { transform: scale(1.02) rotate(0.5deg); }
+        }
+
+        /* Withdrawal Modal Styling */
+        #withdrawal-modal {
+            z-index: 300;
+        }
+
+        .withdrawal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .withdrawal-form label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #88a;
+            font-weight: bold;
+        }
+
+        .withdrawal-form input, .withdrawal-form select {
+            background: #070712;
+            border: 1px solid var(--color-neon-purple);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .withdrawal-form input:focus {
+            border-color: var(--color-neon-blue);
+        }
+
+        /* Trivia Game inside withdrawal */
+        #withdrawal-trivia {
+            display: none;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1.5px solid var(--color-neon-green);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: left;
+        }
+
+        .trivia-q {
+            font-weight: bold;
+            font-size: 14px;
+            color: var(--color-neon-blue);
+            margin-bottom: 12px;
+        }
+
+        .trivia-option {
+            display: block;
+            width: 100%;
+            background: #111126;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.1s;
+            font-size: 12px;
+        }
+
+        .trivia-option:hover {
+            background: #1d1d3d;
+            border-color: var(--color-neon-purple);
+        }
+
+        /* Start screen Intro styling */
+        #intro-screen {
+            z-index: 800;
+            display: flex;
+        }
+
+        .intro-card {
+            width: 90%;
+            max-width: 550px;
+            background: #080814;
+            border: 4px solid var(--color-neon-purple);
+            border-image: linear-gradient(135deg, var(--color-neon-purple), var(--color-neon-green)) 1;
+            box-shadow: 0 0 45px rgba(191, 0, 255, 0.6);
+            padding: 35px 25px;
+            text-align: center;
+            border-radius: 12px;
+        }
+
+        .intro-title {
+            font-size: 32px;
+            font-weight: 900;
+            margin: 0 0 10px 0;
+            background: linear-gradient(45deg, var(--color-neon-purple), var(--color-neon-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 25px rgba(191, 0, 255, 0.4);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .intro-desc {
+            font-size: 14px;
+            color: #ddd;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .btn-start-game {
+            background: linear-gradient(135deg, var(--color-neon-purple), #8000ff);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(191, 0, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: transform 0.1s ease;
+        }
+
+        .btn-start-game:active {
+            transform: scale(0.95);
+        }
+
+        /* Certificate screen */
+        #cert-modal {
+            z-index: 700;
+        }
+
+        .cert-canvas-container {
+            width: 100%;
+            max-width: 380px;
+            aspect-ratio: 1.414 / 1; /* Standard A4 landscape ratio */
+            border: 2px solid var(--color-neon-green);
+            border-radius: 8px;
+            margin: 15px auto;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.2);
+            background: #fff;
+        }
+
+        #cert-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
     </style>
 </head>
 <body>
-    <!-- AD BANNER -->
-    <div id="ad-banner">
-        <div class="ad-content">
-            <span class="ad-tag">Реклама</span>
-            <span class="ad-title" id="banner-title">Слот-казино КосмоЛот!</span>
-            <span id="banner-desc">Забирай +500 фріспінів прямо зараз! 🎰</span>
+    <!-- 1. TOP SIMULATED AD BANNER -->
+    <div id="top-ad-banner">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="ad-badge">РЕКЛАМА</span>
+            <div style="display: flex; flex-direction: column;">
+                <div>
+                    <span class="ad-title-text" id="banner-ad-title">УСПІХ ВІД СІГМИ!</span>
+                    <span style="color: #fff; font-weight: bold;">|</span>
+                </div>
+                <span class="ad-desc-text" id="banner-ad-desc">Купуй курс "Успішний Скібідіст" всього за 1 гривню! 🚽</span>
+            </div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
-            <button class="ad-btn-action" onclick="alert('Дякуємо за клік! Нам нараховано $0.50! 😎')">ГРАТИ</button>
-            <span class="ad-close" id="close-banner-btn">&times;</span>
+            <button class="ad-btn-click" id="banner-ad-action-btn">ДЕТАЛЬНІШЕ</button>
+            <span class="ad-close-cross" id="banner-ad-close-btn">&times;</span>
         </div>
     </div>
 
-    <!-- INTERSTITIAL AD -->
-    <div id="ad-interstitial">
-        <div id="ad-interstitial-content">
-            <button class="ad-interstitial-close" id="close-interstitial-btn">X</button>
-            <span class="ad-tag" style="display: inline-block; margin-bottom: 15px;">Спонсор</span>
-            <h2 style="color: #ff3300; margin: 0 0 10px 0;">CryptoSpace Wallet</h2>
-            <p style="color: #ccc; font-size: 14px; margin-bottom: 25px;">Зберігайте ваші крипто-активи та здобуті космічні кристали у найнадійнішому децентралізованому гаманці нового покоління!</p>
-            <button class="btn-action" style="width: auto; height: auto; border-radius: 4px; padding: 12px 25px; margin: 0 auto; font-size: 16px;" onclick="alert('Redirecting...')">ЗАВАНТАЖИТИ</button>
+    <!-- 2. MAIN GAME CONTAINER -->
+    <div id="game-container">
+
+        <!-- LEFT: MEME GENERATOR STUDIO -->
+        <div class="neon-panel meme-maker-section">
+            <h2 class="section-title">
+                Студія Мемів <span>[БРЕЙНРОТ AI]</span>
+            </h2>
+
+            <!-- Template Slider Horizontal -->
+            <div class="template-picker-container" id="template-slider">
+                <!-- Cards filled programmatically in index.js -->
+            </div>
+
+            <!-- Canvas Workspace -->
+            <div class="meme-canvas-wrapper">
+                <canvas id="meme-canvas" width="600" height="600"></canvas>
+            </div>
+
+            <!-- Meme Caption Controls -->
+            <div class="meme-controls">
+                <div class="input-row">
+                    <label>Верхній Текст (Top Caption)</label>
+                    <input type="text" id="caption-top" placeholder="Введіть верхній текст..." value="КОЛИ КЕНТЮРІК НАМАГАЄТЬСЯ">
+                </div>
+                <div class="input-row">
+                    <label>Нижній Текст (Bottom Caption)</label>
+                    <input type="text" id="caption-bottom" placeholder="Введіть нижній текст..." value="ОБІЙТИ НАЛОГ ФАНУМА">
+                </div>
+
+                <div class="flex-row" style="margin-top: 4px;">
+                    <div class="input-row">
+                        <label>Розмір шрифту (<span id="font-size-val">42</span>px)</label>
+                        <input type="range" id="caption-font-size" min="20" max="70" value="42" style="accent-color: var(--color-neon-purple);">
+                    </div>
+                    <div class="input-row" style="flex: 0 0 65px;">
+                        <label>Колір</label>
+                        <input type="color" id="caption-color" value="#ffffff" style="width: 100%; height: 28px; border: none; padding: 0; background: none; cursor: pointer;">
+                    </div>
+                </div>
+
+                <div class="flex-row" style="margin-top: 5px;">
+                    <button class="btn-secondary" id="btn-randomize-text">🎲 Випадковий Текст</button>
+                    <button class="btn-secondary" id="btn-download-meme">💾 Скачати Мем</button>
+                </div>
+            </div>
+
+            <button class="btn-green-pulse" id="btn-publish-meme">🚀 ОПУБЛІКУВАТИ МЕМ ТА ЗАРОБИТИ 💸</button>
+        </div>
+
+        <!-- RIGHT: MONETIZATION & SIMULATOR -->
+        <div class="neon-panel tycoon-section">
+            <h2 class="section-title">
+                Монетизація <span>₴ <span id="cash-balance">0</span></span>
+            </h2>
+
+            <!-- Stats Dashboard Grid -->
+            <div class="stats-dashboard">
+                <div class="stat-card">
+                    <span class="stat-title">Дохід</span>
+                    <span class="stat-value highlight-green" id="cash-per-sec-ui">+₴0/с</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-title">Мемів</span>
+                    <span class="stat-value" id="memes-count-ui">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-title">Переглядів</span>
+                    <span class="stat-value highlight-purple" id="views-count-ui">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-title">Спільнота</span>
+                    <span class="stat-value" id="subs-count-ui">0</span>
+                </div>
+            </div>
+
+            <!-- Three.js 3D Interactive mining block -->
+            <div class="mining-container">
+                <div id="coin-3d-canvas-container">
+                    <canvas id="coin-3d-canvas"></canvas>
+                </div>
+                <div class="mining-info">
+                    <div class="mining-title">3D Клікер "Сігма-Крипта"</div>
+                    <p class="mining-desc" style="margin: 0; font-size: 10.5px; color: #bbb;">Клікай по 3D Сігма-Коїну, щоб майнити криптовалюту та конвертувати її в реальні гривні!</p>
+                    <div>
+                        <button class="btn-mine-clicker" id="btn-mine-coin">МЛИНЦЮВАТИ ГРИНД СІГМИ 🔨</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upgrades Shop list -->
+            <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #88a; letter-spacing: 0.5px; margin-top: 5px; margin-bottom: 2px;">
+                Покращення Бренду & Боти:
+            </div>
+            <div class="store-container" id="upgrades-store">
+                <!-- Upgrade items inserted programmatically -->
+            </div>
+
+            <!-- Real-time Tik Tok Comments Simulator -->
+            <div class="comments-section">
+                <div class="comments-title">Прямий ефір коментарів (TikTok / Reels):</div>
+                <div class="comments-feed" id="comments-feed-box">
+                    <div class="comment-item">👉 Створіть та опублікуйте свій перший брейрот-мем!</div>
+                </div>
+            </div>
+
+            <!-- Bottom Button Actions (Withdraw cash) -->
+            <div class="bottom-action-bar">
+                <button class="btn-withdraw" id="btn-open-withdraw">💳 ВИВЕСТИ РЕАЛЬНІ ГРОШІ НА КАРТКУ</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 3. SOUND TOGGLE BUTTON -->
+    <button id="sound-toggle">🔊</button>
+
+    <!-- 4. MODAL: INTRO INSTRUCTIONS SCREEN -->
+    <div class="fullscreen-modal" id="intro-modal" style="display: flex;">
+        <div class="intro-card">
+            <h1 class="intro-title">БРЕЙНРОТ МЕМ ГЕНЕРАТОР</h1>
+            <p style="font-size: 18px; font-weight: bold; color: var(--color-neon-green); margin: -5px 0 15px 0; text-transform: uppercase; letter-spacing: 2px;">Клік-Тайкун "Сігма-Бізнес"</p>
+            <div class="intro-desc">
+                Шалом, майбутній Sigma-Меміардер!<br><br>
+                Ласкаво просимо до твоєї власної мем-імперії. Твоя мета — заробляти шалені гроші на найпопулярніших <strong>Брейрот (Brainrot) трендах</strong>!<br><br>
+                🚀 <strong>ЩО РОБИТИ:</strong><br>
+                1. Обирай легендарних брейрот-персонажів (Скібіді, Мюінг, Сова, Хок Туа, Гігачад).<br>
+                2. Створюй меми, підбирай шрифти та пиши ультра-рофляні речення українською.<br>
+                3. Опублікуй мем і дивись, як перегляди, підписники та гроші ллються рікою!<br>
+                4. Клікай по обертовому <strong>3D Sigma-Коїну</strong> для миттєвого заробітку.<br>
+                5. Купуй ТікТок ботів, ШІ-генератори та захист від Фанум-Налогу, щоб масштабувати бізнес!<br>
+                6. Виводь мільйони на картку та отримай Офіційний Сертифікат Головного Сігми країни!<br><br>
+                <em>Створено за підтримки Тадеуша Карабаса та Гільдії Мюінг-Котів 🤫🏼</em>
+            </div>
+            <button class="btn-start-game" id="btn-start-game">РОЗПОЧАТИ ГРИНД 😎</button>
         </div>
     </div>
 
-    <!-- REWARDED AD -->
-    <div id="ad-rewarded">
-        <div id="ad-rewarded-video-simulation">
-            <div class="ad-tag video-ad-badge">Рекламний Відеоролик</div>
-            <div id="ad-rewarded-timer">Зачекайте: 5с</div>
+    <!-- 5. MODAL: AD INTERSTITIAL (FULLSCREEN POPUP) -->
+    <div class="fullscreen-modal" id="interstitial-ad">
+        <div class="modal-card">
+            <button class="modal-close-btn" id="interstitial-ad-close-btn">X</button>
+            <span class="ad-badge" style="display: inline-block; margin-bottom: 12px;">РЕКЛАМНИЙ СПОНСОР</span>
+            <h2 id="interstitial-title" style="color: var(--color-neon-purple); margin: 0 0 10px 0; font-size: 22px; text-transform: uppercase;">КУРС "ЗАВТРА ТИ СІГМА"</h2>
+            <p id="interstitial-desc" style="color: #ccc; font-size: 14px; margin-bottom: 25px; line-height: 1.5;">Навчися різити дівчат, платити менше налогів фанума та правильно мюїнгувати з нашими відеолекціями всього за 499₴!</p>
+            <button class="btn-green-pulse" id="interstitial-ad-click-btn" style="width: 100%; animation: none;">ПРИДБАТИ КУРС 🎓</button>
+            <div style="font-size: 10px; color: #555; margin-top: 10px;">Реклама допомагає вам заробляти більше!</div>
+        </div>
+    </div>
 
-            <div class="video-promo-content">
-                <h1 style="font-size: 36px; margin: 0 0 15px 0; color: #ff3300;">🚀 RAID: SHADOW LEGENDS 🚀</h1>
-                <p style="font-size: 18px; color: #eee; line-height: 1.6;">Грайте у найкращу покрокову рольову фентезі-гру безкоштовно! Отримайте легендарного героя після закінчення перегляду відеоролика!</p>
-                <div style="margin-top: 30px; font-size: 24px; color: #ffcc00; font-weight: bold;">Трансляція ігрового процесу... ⚔️</div>
+    <!-- 6. MODAL: AD REWARDED (VIDEO STREAM SIMULATION) -->
+    <div class="fullscreen-modal" id="rewarded-ad">
+        <div class="rewarded-video-simulation">
+            <span class="ad-badge video-ad-tag">СПЕЦІАЛЬНИЙ ВІДЕОРОЛИК</span>
+            <div class="rewarded-timer" id="rewarded-ad-timer">Зачекайте: 5с</div>
+
+            <div class="rewarded-video-content">
+                <h1 id="rewarded-ad-title" style="font-size: 34px; margin: 0 0 15px 0; color: #ff0055; text-shadow: 0 0 15px rgba(255,0,85,0.4); text-transform: uppercase;">🚽 SKIBIDI WAR 3D 🚽</h1>
+                <p id="rewarded-ad-desc" style="font-size: 18px; color: #eee; line-height: 1.6; margin-bottom: 25px;">
+                    Обороняй базу камераменів від нашестя туалетів нового покоління! Завантаж зараз безкоштовно та отримай 10,000 скібіді-кредитів на рахунок!
+                </p>
+                <div style="margin-top: 20px; font-size: 22px; color: #ffcc00; font-weight: bold; animation: pulse-ad 1s infinite alternate;">
+                    Трансляція ігрового процесу... 🎮⚔️
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- START INTRO -->
-    <div id="intro-screen">
-        <h1>SPACE DUTY 3D</h1>
-        <p>Керуйте бойовим крейсером за допомогою лівого джойстика.<br>Знищуйте астероїди, збирайте кристали та **знищуйте ворожі дрони прибульців (Alien Drones)**!<br>Перезаряджайте зброю, покращуйте щити на базі та виживайте у зоні бойових дій!</p>
-        <button id="start-btn">ПОЧАТИ БІЙ</button>
-    </div>
+    <!-- 7. MODAL: WITHDRAW MONEY CARD -->
+    <div class="fullscreen-modal" id="withdrawal-modal">
+        <div class="modal-card">
+            <button class="modal-close-btn" id="withdrawal-close-btn">X</button>
+            <h2 style="color: #ffcc00; margin: 0 0 5px 0; text-transform: uppercase; font-size: 20px;">💳 Вивід коштів на картку</h2>
+            <p style="font-size: 12px; color: #aaa; margin: 0 0 15px 0;">Зароблено: <strong style="color: var(--color-neon-green);">₴<span id="withdrawal-cash-available">0</span></strong></p>
 
-    <!-- GAMEOVER SCREEN -->
-    <div id="gameover-screen">
-        <h1>МІСІЮ ПРОВАЛЕНО</h1>
-        <p id="gameover-stats">Ви зібрали: 0 кристалів</p>
-        <div style="display: flex; gap: 15px; margin-top: 15px;">
-            <button id="restart-btn" style="margin-top: 0;">НОВИЙ БІЙ</button>
-            <button id="revive-ad-btn" style="background: #ffcc00; color: black; border: none; padding: 12px 20px; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer;">ВІДРОДИТИСЯ (РЕКЛАМА) 🎬</button>
-        </div>
-    </div>
+            <div id="withdrawal-main-form">
+                <div class="withdrawal-form">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label>Оберіть платіжний метод</label>
+                        <select id="withdraw-method">
+                            <option value="mono">Monobank 🐱 (Рекомендується)</option>
+                            <option value="privat">Privat24 🪙</option>
+                            <option value="crypto">Crypto: Sigma Coin Wallet (SOL/TON) 📈</option>
+                            <option value="fanum">Оплата Налогу Фанума (Fanum-Tax Direct) 🍕</option>
+                        </select>
+                    </div>
 
-    <!-- HITMARKER indicator -->
-    <div id="hitmarker">
-        <div class="hit-line hit-line-1"></div>
-        <div class="hit-line hit-line-2"></div>
-    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label id="withdraw-card-label">Номер картки / Гаманця</label>
+                        <input type="text" id="withdraw-card-input" placeholder="4441 1144 2255 1234" value="">
+                    </div>
 
-    <!-- DAMAGE FLASH BORDER -->
-    <div id="damage-indicator"></div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label>Сума виведення (₴)</label>
+                        <input type="number" id="withdraw-amount-input" placeholder="Сума..." value="1000">
+                    </div>
 
-    <!-- FIRST PERSON CROSSHAIRS -->
-    <div id="crosshair">
-        <div class="cross-line cross-h left"></div>
-        <div class="cross-line cross-h right"></div>
-        <div class="cross-line cross-v top"></div>
-        <div class="cross-line cross-v bottom"></div>
-        <div class="cross-dot"></div>
-    </div>
+                    <button class="btn-green-pulse" id="btn-request-withdrawal-action" style="width: 100%; font-size: 13px; padding: 12px; animation: none;">ПІДТВЕРДИТИ ЗАПИТ НА ВИВІД 🚀</button>
+                </div>
+            </div>
 
-    <div id="canvas-container"></div>
-
-    <!-- TACTICAL SHOOTER HUD LEFT -->
-    <div id="tactical-hud-left">
-        <div style="font-size: 14px; font-weight: bold; color: #ff3300; letter-spacing: 1px;">ЗДОРОВ'Я (HP)</div>
-        <div class="hud-bar-container" style="border-color: #ff3300;">
-            <div id="hp-bar-fill" class="hud-bar-fill hp" style="width: 100%;"></div>
-        </div>
-        <div style="font-size: 14px; font-weight: bold; color: #00f0ff; letter-spacing: 1px; margin-top: 10px;">ЩИТИ (SHIELD)</div>
-        <div class="hud-bar-container" style="border-color: #00f0ff;">
-            <div id="shield-bar-fill" class="hud-bar-fill" style="width: 100%;"></div>
-        </div>
-    </div>
-
-    <!-- TACTICAL SHOOTER HUD RIGHT -->
-    <div id="tactical-hud-right">
-        <div class="ammo-text"><span id="ammo-clip">30</span>/<span id="ammo-max">30</span></div>
-        <div class="ammo-sub">БОЄПРИПАСИ / ЗБРОЯ</div>
-        <button id="reload-btn" style="margin-top: 8px; background: rgba(0, 240, 255, 0.1); border: 1px solid #00f0ff; color: #00f0ff; padding: 4px 10px; font-family: monospace; border-radius: 3px; font-weight: bold; cursor: pointer; text-transform: uppercase;">RELOAD (R)</button>
-    </div>
-
-    <div id="ui">
-        <div class="hud-panel">Кристали: <span id="crystal-count">0</span></div>
-        <div class="hud-panel">Кредити: $<span id="money-count">0</span></div>
-        <div class="hud-panel">Паливо: <span id="fuel-count">100</span>%</div>
-        <div class="hud-panel">Вантаж: <span id="cargo-count">0</span> / <span id="cargo-max">20</span></div>
-    </div>
-
-    <button id="shop-btn">ВІЙСЬКОВА СТАНЦІЯ (МАГАЗИН / ПРОДАЖ)</button>
-
-    <!-- SHOP MODAL -->
-    <div id="shop-modal">
-        <h2>АРСЕНАЛ СТАНЦІЇ</h2>
-        <p>Тут ви можете обміняти кристали на кредити, полагодити щити та вдосконалити зброю!</p>
-
-        <div class="shop-item">
-            <span>Здати вантаж:</span>
-            <div style="display: flex; gap: 5px;">
-                <button id="sell-all-btn">Продати</button>
-                <button id="sell-all-double-btn" style="background: #ffaa00; color: black;">2x Кредитів 🎬</button>
+            <!-- Brainrot Trivia verification screen -->
+            <div id="withdrawal-trivia">
+                <div style="color: var(--color-neon-green); font-weight: bold; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; text-align: center;">🛡️ ПЕРЕВІРКА НА СПРАВЖНЬОГО СІГМУ</div>
+                <p style="font-size: 11px; color: #ccc; margin-bottom: 12px; text-align: center;">Для запобігання спам-ботів та підтвердження транзакції, будь ласка, дайте відповідь на брейрот-запитання:</p>
+                <div class="trivia-q" id="trivia-question-text">Запитання?</div>
+                <div id="trivia-options-wrapper">
+                    <!-- Options filled programmatically -->
+                </div>
             </div>
         </div>
-        <div class="shop-item">
-            <span>Заправити паливо та відновити щити ($10):</span>
-            <div style="display: flex; gap: 5px;">
-                <button id="refuel-btn">Полагодити</button>
-                <button id="refuel-ad-btn" style="background: #00bcd4; color: black;">Безкоштовно 🎬</button>
+    </div>
+
+    <!-- 8. MODAL: MEME SIGMA LICENSE / CERTIFICATE -->
+    <div class="fullscreen-modal" id="cert-modal">
+        <div class="modal-card" style="max-width: 500px; border-color: var(--color-neon-green); box-shadow: 0 0 45px rgba(0, 255, 102, 0.4);">
+            <button class="modal-close-btn" id="cert-close-btn">X</button>
+            <h2 style="color: var(--color-neon-green); margin: 0 0 5px 0; text-transform: uppercase; font-size: 22px;">🥇 СЕРТИФІКАТ СІГМИ ОПРИЛЮДНЕНО!</h2>
+            <p style="font-size: 13px; color: #ccc; margin: 0 0 15px 0;">Вітаємо! Ви успішно пройшли перевірку та вивели кошти на рахунок! Ось ваша офіційна ліцензія Головного Сігми України:</p>
+
+            <div class="cert-canvas-container">
+                <canvas id="cert-canvas" width="700" height="495"></canvas>
             </div>
-        </div>
-        <div class="shop-item">
-            <span>Об'єм магазину набоїв (+10) - $50:</span>
-            <button id="upgrade-cargo-btn">Покращити</button>
-        </div>
-        <div class="shop-item">
-            <span>Швидкість вогню (Потужність лазера) - $100:</span>
-            <button id="upgrade-laser-btn">Покращити</button>
-        </div>
-        <div class="shop-item">
-            <span>Маневреність двигунів (+20%) - $75:</span>
-            <button id="upgrade-speed-btn">Покращити</button>
-        </div>
 
-        <button id="close-shop">Закрити</button>
+            <p style="font-size: 11px; color: #888; margin-top: 5px;">*Цей сертифікат підтверджує вашу величність. Ви можете зробити скріншот та надіслати друзям, щоб заздрили!</p>
+            <button class="btn-green-pulse" id="cert-download-btn" style="width: 100%; font-size: 13px; padding: 10px; margin-top: 5px; animation: none;">💾 ЗБЕРЕГТИ СЕРТИФІКАТ</button>
+        </div>
     </div>
 
-    <div id="controls">
-        <div class="joystick-container" id="joystick-container">
-            <div class="joystick-knob" id="joystick-knob"></div>
-        </div>
-        <button class="btn-action" id="laser-btn">FIRE</button>
-    </div>
 </body>
 </html>
